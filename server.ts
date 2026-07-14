@@ -939,6 +939,58 @@ async function saveToSupabase(product: any, article: any) {
   }
 }
 
+// --- SUPABASE STATUS DIAGNOSTIC ENDPOINT ---
+app.get("/api/admin/supabase-status", async (req, res) => {
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return res.json({
+      configured: false,
+      connected: false,
+      message: "Supabase environment variables (SUPABASE_URL and/or SUPABASE_ANON_KEY) are not configured.",
+      url: supabaseUrl ? `${supabaseUrl.substring(0, 15)}...` : "not set",
+      key: supabaseAnonKey ? "configured but masked" : "not set"
+    });
+  }
+
+  try {
+    const { createClient } = await import("@supabase/supabase-js");
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+    // Test querying the categories table to verify schema is created and credentials work
+    const { data, error } = await supabase.from("categories").select("slug").limit(1);
+
+    if (error) {
+      // Check if table missing
+      const isTableMissing = error.code === "P0001" || error.message?.toLowerCase().includes("relation") || error.message?.toLowerCase().includes("does not exist");
+      return res.json({
+        configured: true,
+        connected: false,
+        tablesExist: !isTableMissing,
+        error: error.message,
+        errorCode: error.code,
+        message: isTableMissing 
+          ? "Supabase connected successfully, but the required database tables (categories, products, articles) have not been created. Please run the Supabase Schema SQL script in your Supabase SQL Editor."
+          : `Connected with error: ${error.message}`
+      });
+    }
+
+    return res.json({
+      configured: true,
+      connected: true,
+      tablesExist: true,
+      message: "Your Supabase integration is fully configured and working! Connection established and schemas verified.",
+      url: supabaseUrl
+    });
+  } catch (err: any) {
+    return res.json({
+      configured: true,
+      connected: false,
+      tablesExist: false,
+      error: err.message || String(err),
+      message: "Failed to connect to Supabase. Check that your credentials are valid and the URL is correct."
+    });
+  }
+});
+
 // --- ✨ GENERATE TODAY'S PRODUCT API ENDPOINT ---
 const PRODUCT_CANDIDATES = [
   {

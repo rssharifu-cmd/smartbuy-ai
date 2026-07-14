@@ -28,6 +28,18 @@ export const Admin: React.FC = () => {
   const [generationState, setGenerationState] = useState<"idle" | "researching" | "writing" | "publishing" | "completed">("idle");
   const [generatedOutput, setGeneratedOutput] = useState<{ product: Product; article: Article; supabaseSaved: boolean } | null>(null);
 
+  // Supabase Connectivity Check State
+  const [supabaseStatus, setSupabaseStatus] = useState<{
+    checked: boolean;
+    configured: boolean;
+    connected: boolean;
+    tablesExist: boolean;
+    message: string;
+    url?: string;
+    error?: string;
+  } | null>(null);
+  const [checkingSupabase, setCheckingSupabase] = useState(false);
+
   // Article Form State
   const [artTitle, setArtTitle] = useState("");
   const [artSlug, setArtSlug] = useState("");
@@ -117,6 +129,7 @@ export const Admin: React.FC = () => {
       }
     }
     loadData();
+    checkSupabaseConnectivity();
   }, [isAuthenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -439,6 +452,36 @@ export const Admin: React.FC = () => {
     }
   };
 
+  // Check Supabase Connectivity
+  const checkSupabaseConnectivity = async () => {
+    setCheckingSupabase(true);
+    try {
+      const res = await fetch("/api/admin/supabase-status");
+      if (res.ok) {
+        const data = await res.json();
+        setSupabaseStatus({ checked: true, ...data });
+      } else {
+        setSupabaseStatus({
+          checked: true,
+          configured: false,
+          connected: false,
+          tablesExist: false,
+          message: "Could not contact the backend status endpoint."
+        });
+      }
+    } catch (err: any) {
+      setSupabaseStatus({
+        checked: true,
+        configured: false,
+        connected: false,
+        tablesExist: false,
+        message: err.message || "Failed to query server."
+      });
+    } finally {
+      setCheckingSupabase(false);
+    }
+  };
+
   // Generate Today's Product
   const handleGenerateTodayProduct = async () => {
     setGenerationState("researching");
@@ -642,6 +685,41 @@ export const Admin: React.FC = () => {
             <p className="text-xs sm:text-sm text-slate-350 leading-relaxed">
               Click below to dynamically select a product, perform deep research using Gemini, draft an expert-level review with SEO metadata and schema, and publish immediately to both your local index and Supabase database.
             </p>
+
+            {/* Supabase Connection Status bar */}
+            <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
+              <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Supabase Sync:</span>
+              {checkingSupabase ? (
+                <span className="text-[11px] text-indigo-400 animate-pulse flex items-center gap-1.5 font-semibold">
+                  <span className="w-2 h-2 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></span>
+                  Pinging Supabase...
+                </span>
+              ) : supabaseStatus?.checked ? (
+                supabaseStatus.connected && supabaseStatus.tablesExist ? (
+                  <span className="text-[11px] text-emerald-400 font-extrabold flex items-center gap-1.5 bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-900/30">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Connected & Verified (Auto-Sync Active)
+                  </span>
+                ) : supabaseStatus.configured ? (
+                  <span className="text-[11px] text-amber-400 font-extrabold flex items-center gap-1.5 bg-amber-950/40 px-3 py-1 rounded-full border border-amber-900/30" title={supabaseStatus.message}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                    Tables Missing (Click "Supabase Schema SQL" tab to resolve)
+                  </span>
+                ) : (
+                  <span className="text-[11px] text-slate-400 font-extrabold flex items-center gap-1.5 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800" title={supabaseStatus.message}>
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                    Not Configured (Skipping Sync / Local Only)
+                  </span>
+                )
+              ) : (
+                <button
+                  onClick={checkSupabaseConnectivity}
+                  className="text-[11px] text-indigo-400 hover:text-indigo-300 hover:underline font-extrabold cursor-pointer"
+                >
+                  Verify Connection Status
+                </button>
+              )}
+            </div>
 
             {/* Action Area */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
@@ -1530,6 +1608,86 @@ export const Admin: React.FC = () => {
                   <p className="text-xs text-slate-400 leading-relaxed">
                     Deploy this verified PostgreSQL schema onto your **Supabase** database SQL Editor to migrate from file-based storage. It establishes categories, products, articles, and configuration tables with correct foreign keys, check-constraints, indexes, and initial core seed items.
                   </p>
+                </div>
+
+                {/* Supabase Connection Diagnosis Card */}
+                <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-4">
+                  <div className="flex items-center justify-between border-b border-slate-850 pb-3">
+                    <div className="flex items-center gap-2">
+                      <Database className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">Connection Diagnosis Engine</span>
+                    </div>
+                    <button
+                      onClick={checkSupabaseConnectivity}
+                      disabled={checkingSupabase}
+                      className="text-xs font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      {checkingSupabase ? "Pinging..." : "Re-run Connectivity Test"}
+                    </button>
+                  </div>
+
+                  {checkingSupabase ? (
+                    <div className="py-4 text-center space-y-2">
+                      <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                      <p className="text-xs text-slate-400 animate-pulse">Contacting your Supabase instance...</p>
+                    </div>
+                  ) : supabaseStatus?.checked ? (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3.5 h-3.5 rounded-full flex items-center justify-center font-bold text-[8px] ${
+                          supabaseStatus.connected && supabaseStatus.tablesExist 
+                            ? "bg-emerald-500 text-slate-950" 
+                            : supabaseStatus.configured 
+                            ? "bg-amber-500 text-slate-950" 
+                            : "bg-slate-700 text-slate-300"
+                        }`}>
+                          {supabaseStatus.connected && supabaseStatus.tablesExist ? "✓" : "!"}
+                        </div>
+                        <div className="text-xs font-bold text-white">
+                          Status: {
+                            supabaseStatus.connected && supabaseStatus.tablesExist 
+                              ? "FULLY OPERATIONAL" 
+                              : supabaseStatus.configured 
+                              ? "CONFIGURATION INCOMPLETE / ERRORS FOUND" 
+                              : "NOT CONFIGURED"
+                          }
+                        </div>
+                      </div>
+
+                      <p className="text-xs text-slate-400 leading-relaxed bg-slate-950 p-3 rounded-xl border border-slate-850">
+                        {supabaseStatus.message}
+                      </p>
+
+                      {supabaseStatus.error && (
+                        <div className="bg-rose-950/20 border border-rose-900/30 p-3 rounded-xl space-y-1">
+                          <span className="text-[10px] font-bold text-rose-400 uppercase tracking-widest block">Error Logs</span>
+                          <code className="text-[11px] text-rose-300 font-mono block break-words">{supabaseStatus.error}</code>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1 text-[11px]">
+                        <div className="bg-slate-950/40 p-2.5 rounded-lg border border-slate-850">
+                          <span className="text-slate-500 block">Supabase Endpoint URL</span>
+                          <span className="text-slate-350 font-mono block truncate">{supabaseStatus.url || "Not Configured"}</span>
+                        </div>
+                        <div className="bg-slate-950/40 p-2.5 rounded-lg border border-slate-850">
+                          <span className="text-slate-500 block">Tables State (categories, products, articles)</span>
+                          <span className={`font-semibold block ${supabaseStatus.tablesExist ? "text-emerald-400" : "text-amber-400"}`}>
+                            {supabaseStatus.tablesExist ? "Schemas verified" : "Pending setup"}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-2 text-center">
+                      <button
+                        onClick={checkSupabaseConnectivity}
+                        className="bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer"
+                      >
+                        Perform Connection Diagnosis
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div className="space-y-2">
