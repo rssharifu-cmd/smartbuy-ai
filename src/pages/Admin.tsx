@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Lock, LayoutDashboard, FileText, ShoppingBag, Settings, Plus, Trash2, CheckCircle2, AlertCircle, Copy, Check, LogOut, Code, Wand2, Download, Database, Edit3, Clock } from "lucide-react";
+import { Lock, LayoutDashboard, FileText, ShoppingBag, Settings, Plus, Trash2, CheckCircle2, AlertCircle, Copy, Check, LogOut, Code, Wand2, Download, Database, Edit3, Clock, Sparkles, ExternalLink } from "lucide-react";
 import { Product, Article, Category, SiteSettings } from "../types.ts";
 
 export const Admin: React.FC = () => {
@@ -23,6 +23,10 @@ export const Admin: React.FC = () => {
 
   // Status Alerts
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Today's Product Generator State
+  const [generationState, setGenerationState] = useState<"idle" | "researching" | "writing" | "publishing" | "completed">("idle");
+  const [generatedOutput, setGeneratedOutput] = useState<{ product: Product; article: Article; supabaseSaved: boolean } | null>(null);
 
   // Article Form State
   const [artTitle, setArtTitle] = useState("");
@@ -435,6 +439,65 @@ export const Admin: React.FC = () => {
     }
   };
 
+  // Generate Today's Product
+  const handleGenerateTodayProduct = async () => {
+    setGenerationState("researching");
+    setGeneratedOutput(null);
+
+    // Sequence timing simulations for progress visibility (Researching -> Writing -> Publishing -> Completed)
+    const timingSequence = [
+      { state: "writing" as const, delay: 2200 },
+      { state: "publishing" as const, delay: 4800 }
+    ];
+
+    const timers = timingSequence.map(t => 
+      setTimeout(() => {
+        setGenerationState(prev => {
+          if (prev !== "completed" && prev !== "idle") {
+            return t.state;
+          }
+          return prev;
+        });
+      }, t.delay)
+    );
+
+    try {
+      const res = await fetch("/api/admin/generate-today-product", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}`
+        }
+      });
+
+      // Clear standard sequence timers so final actual state sets cleanly
+      timers.forEach(clearTimeout);
+
+      if (res.ok) {
+        const data = await res.json();
+        setGenerationState("completed");
+        setGeneratedOutput(data);
+        showStatus("success", "✨ Today's Recommended Product review and index published successfully!");
+
+        // Trigger reactive hot reloads of sitemaps/product arrays inside Admin view
+        const [artRes, prodRes] = await Promise.all([
+          fetch("/api/articles?all=true"),
+          fetch("/api/products")
+        ]);
+        if (artRes.ok) setArticles(await artRes.json());
+        if (prodRes.ok) setProducts(await prodRes.json());
+      } else {
+        const errData = await res.json();
+        setGenerationState("idle");
+        showStatus("error", errData.error || "Failed to generate today's product.");
+      }
+    } catch (err) {
+      timers.forEach(clearTimeout);
+      setGenerationState("idle");
+      showStatus("error", "Server response timeout or generation pipeline failure.");
+    }
+  };
+
   // Save Settings
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -564,6 +627,103 @@ export const Admin: React.FC = () => {
             <span>{statusMsg.text}</span>
           </div>
         )}
+
+        {/* ✨ Generate Today's Product Action Card */}
+        <div className="bg-gradient-to-r from-indigo-950/50 via-slate-950/40 to-pink-950/30 border border-slate-800 rounded-3xl p-6 sm:p-8 mb-8 shadow-xl relative overflow-hidden backdrop-blur-sm">
+          <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
+            <Sparkles className="w-48 h-48 text-indigo-400" />
+          </div>
+          <div className="max-w-2xl space-y-4 relative z-10">
+            <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">One-Click Editorial Engine</span>
+            </div>
+            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">✨ Generate Today's Recommended Product</h2>
+            <p className="text-xs sm:text-sm text-slate-350 leading-relaxed">
+              Click below to dynamically select a product, perform deep research using Gemini, draft an expert-level review with SEO metadata and schema, and publish immediately to both your local index and Supabase database.
+            </p>
+
+            {/* Action Area */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
+              <button
+                onClick={handleGenerateTodayProduct}
+                disabled={generationState !== "idle"}
+                className={`px-6 py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2.5 transition-all shadow-lg select-none ${
+                  generationState === "idle"
+                    ? "bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-90 active:scale-[0.98] text-white shadow-indigo-500/10 cursor-pointer"
+                    : "bg-slate-800 text-slate-500 border border-slate-750 cursor-not-allowed"
+                }`}
+              >
+                {generationState === "idle" ? (
+                  <>
+                    <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                    <span>Generate Today's Product</span>
+                  </>
+                ) : (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
+                    <span>Generating...</span>
+                  </>
+                )}
+              </button>
+
+              {/* Progress Tracker UI */}
+              {generationState !== "idle" && (
+                <div className="flex items-center gap-2 text-xs font-semibold select-none overflow-x-auto py-1">
+                  <span className={generationState === "researching" ? "text-indigo-400 font-extrabold animate-pulse bg-indigo-950/40 px-2.5 py-1 rounded-lg border border-indigo-900/30" : "text-slate-550"}>
+                    Researching...
+                  </span>
+                  <span className="text-slate-750">→</span>
+                  <span className={generationState === "writing" ? "text-purple-400 font-extrabold animate-pulse bg-purple-950/40 px-2.5 py-1 rounded-lg border border-purple-900/30" : "text-slate-550"}>
+                    Writing...
+                  </span>
+                  <span className="text-slate-750">→</span>
+                  <span className={generationState === "publishing" ? "text-pink-400 font-extrabold animate-pulse bg-pink-950/40 px-2.5 py-1 rounded-lg border border-pink-900/30" : "text-slate-550"}>
+                    Publishing...
+                  </span>
+                  <span className="text-slate-750">→</span>
+                  <span className={generationState === "completed" ? "text-emerald-400 font-extrabold bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-900/30" : "text-slate-550"}>
+                    Completed.
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Generated Output Showcase Card */}
+            {generatedOutput && (
+              <div className="bg-slate-950 border border-slate-850 rounded-2xl p-4 sm:p-5 mt-4 space-y-4 transition-all animate-fade-in shadow-inner">
+                <div className="flex items-center justify-between border-b border-slate-900 pb-2.5">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Successfully Published Article & Product Review</span>
+                  <span className="text-xs text-emerald-400 font-bold bg-emerald-950/50 px-2.5 py-0.5 rounded-full border border-emerald-900/30">Live Immediately</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Product Title</span>
+                    <span className="text-sm text-white font-medium block">{generatedOutput.product.title}</span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Live Article URL Slug</span>
+                    <span className="text-sm text-indigo-300 font-mono block">/articles/{generatedOutput.article.slug}</span>
+                  </div>
+                </div>
+                <div className="pt-2.5 border-t border-slate-900 flex flex-wrap items-center justify-between gap-3 text-xs">
+                  <a
+                    href={`/articles/${generatedOutput.article.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition-colors"
+                  >
+                    <span>View Published Article</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                  <span className="text-slate-500">
+                    Supabase synced: <span className={generatedOutput.supabaseSaved ? "text-emerald-400 font-bold" : "text-slate-500"}>{generatedOutput.supabaseSaved ? "Yes" : "Skipped/Local"}</span>
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
 
         {/* Dash Grid tabs */}
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
