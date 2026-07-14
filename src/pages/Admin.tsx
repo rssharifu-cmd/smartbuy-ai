@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { Lock, LayoutDashboard, FileText, ShoppingBag, Settings, Plus, Trash2, CheckCircle2, AlertCircle, Copy, Check, LogOut, Code } from "lucide-react";
+import { Lock, LayoutDashboard, FileText, ShoppingBag, Settings, Plus, Trash2, CheckCircle2, AlertCircle, Copy, Check, LogOut, Code, Wand2, Download, Database, Edit3, Clock } from "lucide-react";
 import { Product, Article, Category, SiteSettings } from "../types.ts";
 
 export const Admin: React.FC = () => {
@@ -13,7 +13,7 @@ export const Admin: React.FC = () => {
   const [loginError, setLoginError] = useState<string | null>(null);
 
   // Tabs
-  const [activeTab, setActiveTab] = useState<"articles" | "products" | "settings" | "api">("articles");
+  const [activeTab, setActiveTab] = useState<"articles" | "products" | "settings" | "api" | "generate" | "import" | "supabase">("articles");
 
   // Catalog State
   const [articles, setArticles] = useState<Article[]>([]);
@@ -33,6 +33,21 @@ export const Admin: React.FC = () => {
   const [artMetaDescription, setArtMetaDescription] = useState("");
   const [artImage, setArtImage] = useState("");
   const [artAffLink, setArtAffLink] = useState("");
+  const [artStatus, setArtStatus] = useState<"published" | "draft" | "scheduled">("published");
+  const [editingArticleId, setEditingArticleId] = useState<string | null>(null);
+
+  // AI Content Generator State
+  const [genKeyword, setGenKeyword] = useState("");
+  const [genCategory, setGenCategory] = useState("earbuds");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [genResult, setGenResult] = useState<any | null>(null);
+
+  // Bulk Product Import State
+  const [bulkJson, setBulkJson] = useState("");
+  const [isImporting, setIsImporting] = useState(false);
+
+  // Supabase copy state
+  const [copiedSql, setCopiedSql] = useState(false);
 
   // Product Form State
   const [prodTitle, setProdTitle] = useState("");
@@ -74,7 +89,7 @@ export const Admin: React.FC = () => {
     async function loadData() {
       try {
         const [artRes, prodRes, catRes, setRes] = await Promise.all([
-          fetch("/api/articles"),
+          fetch("/api/articles?all=true"),
           fetch("/api/products"),
           fetch("/api/categories"),
           fetch("/api/settings")
@@ -131,7 +146,7 @@ export const Admin: React.FC = () => {
     setTimeout(() => setStatusMsg(null), 5000);
   };
 
-  // Publish Article
+  // Publish/Edit Article
   const handleArticlePublish = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!artTitle || !artSlug || !artContent) {
@@ -155,6 +170,7 @@ export const Admin: React.FC = () => {
           metaDescription: artMetaDescription,
           image: artImage,
           affiliateLink: artAffLink,
+          status: artStatus,
           faq: [
             { question: `Who is the ${artTitle} best for?`, answer: "It is best suited for tech-conscious budget buyers." }
           ],
@@ -163,13 +179,13 @@ export const Admin: React.FC = () => {
             "@type": "Article",
             "headline": artTitle,
             "image": artImage || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600",
-            "author": { "@type": "Person", "name": "SmartBuy AI Staff" }
+            "author": { "@type": "Person", "name": "AffiMind Staff" }
           }
         })
       });
 
       if (res.ok) {
-        showStatus("success", "Article guide published cleanly!");
+        showStatus("success", editingArticleId ? "Article updated successfully!" : "Article guide published cleanly!");
         // reset form
         setArtTitle("");
         setArtSlug("");
@@ -178,9 +194,11 @@ export const Admin: React.FC = () => {
         setArtMetaDescription("");
         setArtImage("");
         setArtAffLink("");
+        setArtStatus("published");
+        setEditingArticleId(null);
         
         // reload articles
-        const artRes = await fetch("/api/articles");
+        const artRes = await fetch("/api/articles?all=true");
         if (artRes.ok) setArticles(await artRes.json());
       } else {
         const err = await res.json();
@@ -188,6 +206,124 @@ export const Admin: React.FC = () => {
       }
     } catch {
       showStatus("error", "Server network error.");
+    }
+  };
+
+  // Populate form to edit article
+  const handleEditArticle = (art: Article) => {
+    setEditingArticleId(art.id);
+    setArtTitle(art.title);
+    setArtSlug(art.slug);
+    setArtCategory(art.category);
+    setArtContent(art.content);
+    setArtMetaTitle(art.metaTitle || "");
+    setArtMetaDescription(art.metaDescription || "");
+    setArtImage(art.image || "");
+    setArtAffLink(art.affiliateLink || "");
+    setArtStatus((art.status as any) || "published");
+    showStatus("success", `Loaded "${art.title}" into the editor. Scroll up to make edits!`);
+  };
+
+  // Trigger AI Article Generation using backend Gemini grounding
+  const handleAIGenerate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!genKeyword) {
+      showStatus("error", "Please provide a keyword or target topic.");
+      return;
+    }
+
+    setIsGenerating(true);
+    setGenResult(null);
+    try {
+      const res = await fetch("/api/ai/generate-article", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}`
+        },
+        body: JSON.stringify({
+          keyword: genKeyword,
+          category: genCategory
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setGenResult(data);
+        showStatus("success", "AI Article successfully compiled with Gemini!");
+      } else {
+        const err = await res.json();
+        showStatus("error", err.error || "Generation pipeline failed.");
+      }
+    } catch {
+      showStatus("error", "Failed to connect to the generation server.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  // Auto-apply generated AI results to active editor
+  const applyAIGeneratedToEditor = () => {
+    if (!genResult) return;
+    setArtTitle(genResult.title || "");
+    setArtSlug(genResult.slug || "");
+    setArtCategory(genCategory);
+    setArtContent(genResult.content || "");
+    setArtMetaTitle(genResult.metaTitle || "");
+    setArtMetaDescription(genResult.metaDescription || "");
+    setArtImage("https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600");
+    setArtAffLink("");
+    setArtStatus("draft");
+    setEditingArticleId(null);
+    setActiveTab("articles");
+    showStatus("success", "Transferred AI draft into editor. Refine or publish below!");
+  };
+
+  // Execute Bulk Product Import
+  const handleBulkImport = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!bulkJson.trim()) {
+      showStatus("error", "JSON catalog payload is empty.");
+      return;
+    }
+
+    setIsImporting(true);
+    try {
+      let parsed;
+      try {
+        parsed = JSON.parse(bulkJson);
+      } catch {
+        showStatus("error", "Invalid JSON syntax. Ensure double quotes and brackets are matching.");
+        setIsImporting(false);
+        return;
+      }
+
+      const productsArray = Array.isArray(parsed) ? parsed : (parsed.products || [parsed]);
+
+      const res = await fetch("/api/products/import", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}`
+        },
+        body: JSON.stringify({ products: productsArray })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        showStatus("success", `Successfully imported/updated ${data.count} products!`);
+        setBulkJson("");
+        // Reload products list
+        const prodRes = await fetch("/api/products");
+        if (prodRes.ok) setProducts(await prodRes.json());
+      } else {
+        const err = await res.json();
+        showStatus("error", err.error || "Bulk import rejected.");
+      }
+    } catch {
+      showStatus("error", "Import network communication error.");
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -404,7 +540,7 @@ export const Admin: React.FC = () => {
           <div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2">
               <LayoutDashboard className="w-7 h-7 text-indigo-400" />
-              <span>SmartBuy AI Administrative Suite</span>
+              <span>AffiMind Administrative Suite</span>
             </h1>
             <p className="text-xs text-slate-400 mt-1">Configure active sitemaps, publish review indexes, or edit disclosure variables</p>
           </div>
@@ -444,6 +580,15 @@ export const Admin: React.FC = () => {
               <span>Publish & Edit Articles</span>
             </button>
             <button
+              onClick={() => setActiveTab("generate")}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2.5 transition-all border ${
+                activeTab === "generate" ? "bg-slate-800 border-indigo-500/20 text-white" : "bg-transparent border-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <Wand2 className="w-4 h-4 text-pink-400" />
+              <span>AI Article Generator</span>
+            </button>
+            <button
               onClick={() => setActiveTab("products")}
               className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2.5 transition-all border ${
                 activeTab === "products" ? "bg-slate-800 border-indigo-500/20 text-white" : "bg-transparent border-transparent text-slate-400 hover:text-white"
@@ -451,6 +596,24 @@ export const Admin: React.FC = () => {
             >
               <ShoppingBag className="w-4 h-4" />
               <span>Publish & Edit Products</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("import")}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2.5 transition-all border ${
+                activeTab === "import" ? "bg-slate-800 border-indigo-500/20 text-white" : "bg-transparent border-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <Download className="w-4 h-4 text-cyan-400" />
+              <span>Bulk Product Import</span>
+            </button>
+            <button
+              onClick={() => setActiveTab("supabase")}
+              className={`w-full text-left px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2.5 transition-all border ${
+                activeTab === "supabase" ? "bg-slate-800 border-indigo-500/20 text-white" : "bg-transparent border-transparent text-slate-400 hover:text-white"
+              }`}
+            >
+              <Database className="w-4 h-4 text-emerald-400" />
+              <span>Supabase Schema SQL</span>
             </button>
             <button
               onClick={() => setActiveTab("settings")}
@@ -483,8 +646,8 @@ export const Admin: React.FC = () => {
                 {/* Form to publish article */}
                 <div className="bg-slate-950 p-6 sm:p-8 rounded-3xl border border-slate-850 shadow-md">
                   <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
-                    <Plus className="w-5 h-5 text-indigo-400" />
-                    <span>Publish New Article Guide</span>
+                    {editingArticleId ? <Edit3 className="w-5 h-5 text-indigo-400" /> : <Plus className="w-5 h-5 text-indigo-400" />}
+                    <span>{editingArticleId ? `Edit Article: "${artTitle}"` : "Publish New Article Guide"}</span>
                   </h3>
                   <form onSubmit={handleArticlePublish} className="space-y-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -560,15 +723,29 @@ export const Admin: React.FC = () => {
                       </div>
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Affiliate hyperlink (Optional)</label>
-                      <input
-                        type="text"
-                        placeholder="https://amazon.com/dp/..."
-                        value={artAffLink}
-                        onChange={(e) => setArtAffLink(e.target.value)}
-                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Affiliate hyperlink (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="https://amazon.com/dp/..."
+                          value={artAffLink}
+                          onChange={(e) => setArtAffLink(e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Publish Status (Publish Queue) *</label>
+                        <select
+                          value={artStatus}
+                          onChange={(e) => setArtStatus(e.target.value as any)}
+                          className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500"
+                        >
+                          <option value="published">Published (Live on site)</option>
+                          <option value="draft">Draft (Saved internally only)</option>
+                          <option value="scheduled">Scheduled (Planned release)</option>
+                        </select>
+                      </div>
                     </div>
 
                     <div>
@@ -576,32 +753,54 @@ export const Admin: React.FC = () => {
                       <textarea
                         rows={8}
                         required
-                        placeholder="Write dynamic reviews with headings, lists, and comparisons..."
+                        placeholder="Write reviews with headings, bold text, comparison bullet points, and related advice..."
                         value={artContent}
                         onChange={(e) => setArtContent(e.target.value)}
                         className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 resize-none font-mono"
                       ></textarea>
                     </div>
 
-                    <button
-                      type="submit"
-                      className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs sm:text-sm tracking-wider transition-all shadow-md"
-                    >
-                      Publish Article
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="submit"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs sm:text-sm tracking-wider transition-all shadow-md cursor-pointer"
+                      >
+                        {editingArticleId ? "Save Configuration Updates" : "Publish Article Guide"}
+                      </button>
+                      {editingArticleId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingArticleId(null);
+                            setArtTitle("");
+                            setArtSlug("");
+                            setArtContent("");
+                            setArtMetaTitle("");
+                            setArtMetaDescription("");
+                            setArtImage("");
+                            setArtAffLink("");
+                            setArtStatus("published");
+                          }}
+                          className="bg-slate-850 hover:bg-slate-800 text-slate-300 font-bold py-2.5 px-4 rounded-xl text-xs cursor-pointer"
+                        >
+                          Cancel Edit
+                        </button>
+                      )}
+                    </div>
                   </form>
                 </div>
 
                 {/* Manage current articles */}
                 <div className="bg-slate-950 p-6 sm:p-8 rounded-3xl border border-slate-850 shadow-md">
-                  <h3 className="text-lg font-bold text-white mb-4">Active Article Index</h3>
+                  <h3 className="text-lg font-bold text-white mb-4">Active Article Index & Queue</h3>
                   <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse text-xs sm:text-sm">
                       <thead>
                         <tr className="border-b border-slate-900 text-slate-400 font-mono">
                           <th className="py-2.5 px-4">Title</th>
                           <th className="py-2.5 px-4">Category</th>
-                          <th className="py-2.5 px-4">Slug</th>
+                          <th className="py-2.5 px-4">Status</th>
+                          <th className="py-2.5 px-4">Created</th>
                           <th className="py-2.5 px-4 text-right">Actions</th>
                         </tr>
                       </thead>
@@ -610,14 +809,35 @@ export const Admin: React.FC = () => {
                           <tr key={art.id} className="hover:bg-slate-900/50">
                             <td className="py-3 px-4 font-semibold max-w-xs truncate">{art.title}</td>
                             <td className="py-3 px-4 capitalize">{art.category}</td>
-                            <td className="py-3 px-4 font-mono text-slate-500">{art.slug}</td>
+                            <td className="py-3 px-4">
+                              <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                                art.status === "draft"
+                                  ? "bg-amber-950/40 border border-amber-900/30 text-amber-400"
+                                  : art.status === "scheduled"
+                                  ? "bg-sky-950/40 border border-sky-900/30 text-sky-400"
+                                  : "bg-emerald-950/40 border border-emerald-900/30 text-emerald-400"
+                              }`}>
+                                {art.status === "draft" ? "Draft" : art.status === "scheduled" ? "Scheduled" : "Published"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 font-mono text-[11px] text-slate-500">{new Date(art.createdAt || Date.now()).toLocaleDateString()}</td>
                             <td className="py-3 px-4 text-right">
-                              <button
-                                onClick={() => handleDeleteArticle(art.id)}
-                                className="text-rose-500 hover:text-rose-400 p-1 rounded hover:bg-rose-500/10 transition-colors"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  onClick={() => handleEditArticle(art)}
+                                  className="text-indigo-400 hover:text-indigo-300 p-1.5 rounded hover:bg-indigo-500/10 transition-colors"
+                                  title="Edit Article"
+                                >
+                                  <Edit3 className="w-4.5 h-4.5" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteArticle(art.id)}
+                                  className="text-rose-500 hover:text-rose-400 p-1.5 rounded hover:bg-rose-500/10 transition-colors"
+                                  title="Delete Article"
+                                >
+                                  <Trash2 className="w-4.5 h-4.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         ))}
@@ -931,7 +1151,7 @@ export const Admin: React.FC = () => {
                 <div>
                   <h3 className="text-lg font-bold text-white mb-2">Secure REST API publishing</h3>
                   <p className="text-xs text-slate-400 leading-relaxed">
-                    SmartBuy AI features an integrated headless ingestion layer to receive bulk articles from automation tools, headless CMS pipelines, or editorial scripts.
+                    AffiMind features an integrated headless ingestion layer to receive bulk articles from automation tools, headless CMS pipelines, or editorial scripts.
                   </p>
                 </div>
 
@@ -969,9 +1189,343 @@ export const Admin: React.FC = () => {
                   </pre>
                 </div>
 
-                <div className="pt-4 border-t border-slate-900 flex flex-col sm:flex-row gap-4 justify-between items-center text-xs text-slate-500">
-                  <span>XML Sitemap URL: <a href="/sitemap.xml" target="_blank" className="text-indigo-400 hover:underline">/sitemap.xml</a></span>
-                  <span>Robots Config URL: <a href="/robots.txt" target="_blank" className="text-indigo-400 hover:underline">/robots.txt</a></span>
+                <div className="pt-4 border-t border-slate-900 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center text-xs text-slate-500">
+                  <span>XML Sitemap: <a href="/sitemap.xml" target="_blank" className="text-indigo-400 hover:underline">/sitemap.xml</a></span>
+                  <span>Robots Config: <a href="/robots.txt" target="_blank" className="text-indigo-400 hover:underline">/robots.txt</a></span>
+                  <span>RSS Feed: <a href="/rss.xml" target="_blank" className="text-indigo-400 hover:underline">/rss.xml</a></span>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 5: AI ARTICLE GENERATOR */}
+            {activeTab === "generate" && (
+              <div className="bg-slate-950 p-6 sm:p-8 rounded-3xl border border-slate-850 shadow-md space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                    <Wand2 className="w-5 h-5 text-pink-400" />
+                    <span>Grounded AI Affiliate Article Generator</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Generate comprehensive affiliate guides automatically. This tool searches your existing active product database for the matching category, extracts specifications and buying advice, and invokes the **Gemini 3.5 Flash** model to draft professional, high-density SEO review structures.
+                  </p>
+                </div>
+
+                <form onSubmit={handleAIGenerate} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Target Keyword / Topic</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Best noise cancelling earbuds under $100"
+                        value={genKeyword}
+                        onChange={(e) => setGenKeyword(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Category Grounding</label>
+                      <select
+                        value={genCategory}
+                        onChange={(e) => setGenCategory(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-sm text-slate-300 focus:outline-none focus:border-indigo-500"
+                      >
+                        <option value="earbuds">Wireless Earbuds</option>
+                        <option value="gaming-mice">Gaming Mice</option>
+                        <option value="coffee-makers">Coffee Makers</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isGenerating}
+                    className="w-full sm:w-auto bg-gradient-to-r from-pink-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white font-bold py-2.5 px-6 rounded-xl text-xs sm:text-sm tracking-wider transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>Grounding & Generating Guide...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-4.5 h-4.5" />
+                        <span>Generate Article with Gemini</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                {genResult && (
+                  <div className="space-y-4 border-t border-slate-900 pt-6">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[10px] font-mono font-bold uppercase text-pink-400 bg-pink-950/40 border border-pink-900/30 px-2 py-0.5 rounded">AI Draft Ready</span>
+                        <h4 className="text-base font-bold text-white mt-1">{genResult.title}</h4>
+                      </div>
+                      <button
+                        onClick={applyAIGeneratedToEditor}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg text-xs transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Apply to Editor Form</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                      <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                        <span className="font-mono text-slate-500 uppercase tracking-wider block mb-1">Generated URL Slug</span>
+                        <span className="font-mono text-slate-300">{genResult.slug}</span>
+                      </div>
+                      <div className="bg-slate-900 p-4 rounded-xl border border-slate-800">
+                        <span className="font-mono text-slate-500 uppercase tracking-wider block mb-1">Generated SEO Title</span>
+                        <span className="text-slate-300">{genResult.metaTitle}</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs">
+                      <span className="font-mono text-slate-500 uppercase tracking-wider block mb-1">Generated SEO Description</span>
+                      <p className="text-slate-300">{genResult.metaDescription}</p>
+                    </div>
+
+                    <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs">
+                      <span className="font-mono text-slate-500 uppercase tracking-wider block mb-3">Grounded Content (Rich Markdown Preview)</span>
+                      <div className="max-h-60 overflow-y-auto font-mono text-xs text-slate-400 leading-relaxed bg-slate-950 p-3 rounded-lg border border-slate-850 whitespace-pre-wrap">
+                        {genResult.content}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 6: BULK PRODUCT IMPORT */}
+            {activeTab === "import" && (
+              <div className="bg-slate-950 p-6 sm:p-8 rounded-3xl border border-slate-850 shadow-md space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                    <Download className="w-5 h-5 text-cyan-400" />
+                    <span>Bulk Product Catalog Import API</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Inject product catalogs into the AffiMind database in batch format. Paste a valid JSON array matching the standard product properties below. Existing slugs are auto-updated, and new items are created instantly.
+                  </p>
+                </div>
+
+                <form onSubmit={handleBulkImport} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Product Catalog JSON Payload</label>
+                    <textarea
+                      rows={10}
+                      required
+                      placeholder={`[\n  {\n    "title": "Sony WH-1000XM5",\n    "slug": "sony-wh-1000xm5-review",\n    "category": "earbuds",\n    "price": "$348.00",\n    "rating": 4.8,\n    "pros": ["Unmatched noise cancellation", "Industry-leading call quality"],\n    "cons": ["Expensive", "Does not fold compact"],\n    "buyingAdvice": "The perfect absolute top pick for daily travelers and office executives."\n  }\n]`}
+                      value={bulkJson}
+                      onChange={(e) => setBulkJson(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 placeholder-slate-700 focus:outline-none focus:border-indigo-500 font-mono resize-none"
+                    ></textarea>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isImporting}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-6 rounded-xl text-xs sm:text-sm tracking-wider transition-all shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                  >
+                    {isImporting ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                        <span>Processing Catalog Import...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4.5 h-4.5" />
+                        <span>Run Import Pipeline</span>
+                      </>
+                    )}
+                  </button>
+                </form>
+
+                <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-850 space-y-2 text-xs">
+                  <h4 className="font-bold text-slate-300">Properties Documentation</h4>
+                  <ul className="list-disc pl-5 space-y-1 text-slate-400 font-mono text-[11px]">
+                    <li><strong className="text-slate-300">title</strong> (string, required) - Product brand title.</li>
+                    <li><strong className="text-slate-300">slug</strong> (string, required, unique) - Lowercase dash-separated URL component.</li>
+                    <li><strong className="text-slate-300">category</strong> (string, required) - "earbuds" | "gaming-mice" | "coffee-makers"</li>
+                    <li><strong className="text-slate-300">price</strong> (string, required) - Display price (e.g. "$49.99")</li>
+                    <li><strong className="text-slate-300">rating</strong> (number, optional) - Decimal value from 1.0 to 5.0</li>
+                    <li><strong className="text-slate-300">pros / cons</strong> (array of strings, optional) - Lists of advantages and drawbacks</li>
+                    <li><strong className="text-slate-300">buyingAdvice</strong> (string, optional) - Rich summary text of whom this is for</li>
+                  </ul>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 7: SUPABASE DATABASE SCHEMA */}
+            {activeTab === "supabase" && (
+              <div className="bg-slate-950 p-6 sm:p-8 rounded-3xl border border-slate-850 shadow-md space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                    <Database className="w-5 h-5 text-emerald-400" />
+                    <span>Supabase Postgres Database Schema</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    Deploy this verified PostgreSQL schema onto your **Supabase** database SQL Editor to migrate from file-based storage. It establishes categories, products, articles, and configuration tables with correct foreign keys, check-constraints, indexes, and initial core seed items.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-400 uppercase tracking-wide">
+                    <span>PostgreSQL DDL SQL Schema Script</span>
+                    <button
+                      onClick={() => {
+                        const schemaText = `-- Create categories table
+CREATE TABLE categories (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    icon_name VARCHAR(50) DEFAULT 'Tag'
+);
+
+-- Create products table
+CREATE TABLE products (
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    category VARCHAR(50) REFERENCES categories(slug) ON DELETE SET NULL,
+    price VARCHAR(50) NOT NULL,
+    rating DECIMAL(3, 2) DEFAULT 4.0,
+    image TEXT,
+    affiliate_link TEXT,
+    pros TEXT[],
+    cons TEXT[],
+    specs JSONB DEFAULT '{}'::jsonb,
+    faq JSONB DEFAULT '[]'::jsonb,
+    buying_advice TEXT,
+    alternatives VARCHAR(255)[],
+    featured BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create articles table
+CREATE TABLE articles (
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    category VARCHAR(50) REFERENCES categories(slug) ON DELETE SET NULL,
+    image TEXT,
+    meta_title VARCHAR(255),
+    meta_description TEXT,
+    content TEXT NOT NULL,
+    faq JSONB DEFAULT '[]'::jsonb,
+    schema JSONB DEFAULT '{}'::jsonb,
+    affiliate_link TEXT,
+    status VARCHAR(50) DEFAULT 'published' CHECK (status IN ('published', 'draft', 'scheduled')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create settings table
+CREATE TABLE settings (
+    id SERIAL PRIMARY KEY,
+    site_name VARCHAR(255) DEFAULT 'AffiMind',
+    site_description TEXT,
+    seo_title VARCHAR(255),
+    seo_description TEXT,
+    affiliate_disclosure TEXT,
+    contact_email VARCHAR(255)
+);
+
+-- Pre-seed core categories
+INSERT INTO categories (id, name, slug, description, icon_name) VALUES
+('1', 'Wireless Earbuds', 'earbuds', 'Unbiased reviews of the best budget, active noise cancellation, and high-fidelity wireless audio.', 'Headphones'),
+('2', 'Gaming Mice', 'gaming-mice', 'Expert precision tests, weight systems, ergonomics, and sensor analyses of professional gaming mice.', 'Mouse'),
+('3', 'Coffee Makers', 'coffee-makers', 'Comprehensive reviews of programmable drip brewers, single-serve espresso makers, and budget grinders.', 'Coffee');`;
+                        navigator.clipboard.writeText(schemaText);
+                        setCopiedSql(true);
+                        setTimeout(() => setCopiedSql(false), 3000);
+                      }}
+                      className="text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5 focus:outline-none"
+                    >
+                      {copiedSql ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedSql ? "Copied!" : "Copy SQL Script"}</span>
+                    </button>
+                  </div>
+                  <pre className="bg-slate-900 p-4 rounded-xl text-[11px] text-slate-300 font-mono overflow-x-auto whitespace-pre leading-relaxed border border-slate-800 max-h-96">
+{`-- Create categories table
+CREATE TABLE categories (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    description TEXT,
+    icon_name VARCHAR(50) DEFAULT 'Tag'
+);
+
+-- Create products table
+CREATE TABLE products (
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    category VARCHAR(50) REFERENCES categories(slug) ON DELETE SET NULL,
+    price VARCHAR(50) NOT NULL,
+    rating DECIMAL(3, 2) DEFAULT 4.0,
+    image TEXT,
+    affiliate_link TEXT,
+    pros TEXT[],
+    cons TEXT[],
+    specs JSONB DEFAULT '{}'::jsonb,
+    faq JSONB DEFAULT '[]'::jsonb,
+    buying_advice TEXT,
+    alternatives VARCHAR(255)[],
+    featured BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create articles table
+CREATE TABLE articles (
+    id VARCHAR(50) PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    slug VARCHAR(255) UNIQUE NOT NULL,
+    category VARCHAR(50) REFERENCES categories(slug) ON DELETE SET NULL,
+    image TEXT,
+    meta_title VARCHAR(255),
+    meta_description TEXT,
+    content TEXT NOT NULL,
+    faq JSONB DEFAULT '[]'::jsonb,
+    schema JSONB DEFAULT '{}'::jsonb,
+    affiliate_link TEXT,
+    status VARCHAR(50) DEFAULT 'published' CHECK (status IN ('published', 'draft', 'scheduled')),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create settings table
+CREATE TABLE settings (
+    id SERIAL PRIMARY KEY,
+    site_name VARCHAR(255) DEFAULT 'AffiMind',
+    site_description TEXT,
+    seo_title VARCHAR(255),
+    seo_description TEXT,
+    affiliate_disclosure TEXT,
+    contact_email VARCHAR(255)
+);
+
+-- Pre-seed core categories
+INSERT INTO categories (id, name, slug, description, icon_name) VALUES
+('1', 'Wireless Earbuds', 'earbuds', 'Unbiased reviews of the best budget, active noise cancellation, and high-fidelity wireless audio.', 'Headphones'),
+('2', 'Gaming Mice', 'gaming-mice', 'Expert precision tests, weight systems, ergonomics, and sensor analyses of professional gaming mice.', 'Mouse'),
+('3', 'Coffee Makers', 'coffee-makers', 'Comprehensive reviews of programmable drip brewers, single-serve espresso makers, and budget grinders.', 'Coffee');`}
+                  </pre>
+                </div>
+
+                <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 text-xs space-y-2">
+                  <h4 className="font-bold text-white flex items-center gap-1.5 text-emerald-400">
+                    <Database className="w-4 h-4" />
+                    <span>How to set up this schema on Supabase</span>
+                  </h4>
+                  <ol className="list-decimal pl-5 space-y-1.5 text-slate-400">
+                    <li>Create a new free project at <a href="https://supabase.com" target="_blank" className="text-indigo-400 hover:underline">supabase.com</a>.</li>
+                    <li>Navigate to the **SQL Editor** tab from your Supabase sidebar dashboard.</li>
+                    <li>Click **New Query**, paste the copied SQL DDL script, and click **Run**.</li>
+                    <li>All 4 tables will be instantly provisioned and seeded, ready for PostgreSQL client queries!</li>
+                  </ol>
                 </div>
               </div>
             )}

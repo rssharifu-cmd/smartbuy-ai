@@ -13,6 +13,7 @@ export const ArticleDetail: React.FC = () => {
   const [slug, setSlug] = useState<string>("");
   const [article, setArticle] = useState<Article | null>(null);
   const [suggestedProducts, setSuggestedProducts] = useState<Product[]>([]);
+  const [relatedArticles, setRelatedArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,7 +38,8 @@ export const ArticleDetail: React.FC = () => {
         }
         const data = await res.json();
         setArticle(data.article);
-        setSuggestedProducts(data.suggestedProducts || []);
+        setSuggestedProducts(data.relatedProducts || []);
+        setRelatedArticles(data.relatedArticles || []);
       } catch (err: any) {
         setError(err.message || "Failed to load guide.");
       } finally {
@@ -46,6 +48,35 @@ export const ArticleDetail: React.FC = () => {
     }
     loadArticle();
   }, [slug]);
+
+  // Handle SEO & Canonical Tags Injection
+  useEffect(() => {
+    if (!article) return;
+
+    // Document Meta Title
+    document.title = article.metaTitle || `${article.title} | AffiMind`;
+
+    // Document Meta Description
+    let metaDesc = document.querySelector('meta[name="description"]');
+    if (!metaDesc) {
+      metaDesc = document.createElement('meta');
+      metaDesc.setAttribute('name', 'description');
+      document.head.appendChild(metaDesc);
+    }
+    metaDesc.setAttribute('content', article.metaDescription || article.title);
+
+    // Canonical Tag Injection
+    let canonicalLink = document.querySelector('link[rel="canonical"]');
+    if (!canonicalLink) {
+      canonicalLink = document.createElement('link');
+      canonicalLink.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonicalLink);
+    }
+    canonicalLink.setAttribute('href', `${window.location.origin}/article/${article.slug}`);
+
+    // Clean up or reset
+    return () => {};
+  }, [article]);
 
   if (loading) {
     return (
@@ -73,8 +104,61 @@ export const ArticleDetail: React.FC = () => {
     );
   }
 
+  // Generate JSON-LD Schema (Requirement #15)
+  const jsonLdData = article ? {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "NewsArticle",
+        "@id": `${window.location.origin}/article/${article.slug}#article`,
+        "isPartOf": {
+          "@type": "WebPage",
+          "@id": `${window.location.origin}/article/${article.slug}`,
+          "url": `${window.location.origin}/article/${article.slug}`,
+          "name": article.metaTitle || article.title
+        },
+        "headline": article.title,
+        "image": [article.image],
+        "datePublished": article.createdAt,
+        "dateModified": article.createdAt,
+        "author": {
+          "@type": "Person",
+          "name": "AffiMind Editorial Staff",
+          "url": `${window.location.origin}/about`
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "AffiMind",
+          "logo": {
+            "@type": "ImageObject",
+            "url": `${window.location.origin}/logo.png`
+          }
+        },
+        "description": article.metaDescription
+      },
+      ...(article.faq && article.faq.length > 0 ? [{
+        "@type": "FAQPage",
+        "mainEntity": article.faq.map(item => ({
+          "@type": "Question",
+          "name": item.question,
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": item.answer
+          }
+        }))
+      }] : [])
+    ]
+  } : null;
+
   return (
     <div className="bg-slate-900 text-slate-100 min-h-screen py-10 px-4 sm:px-6 lg:px-8 font-sans">
+      {/* Inject JSON-LD structured data */}
+      {jsonLdData && (
+        <script type="application/ld+json">
+          {JSON.stringify(jsonLdData)}
+        </script>
+      )}
+
       <div className="max-w-4xl mx-auto">
         
         {/* Breadcrumb */}
@@ -106,7 +190,7 @@ export const ArticleDetail: React.FC = () => {
               </div>
               <div className="flex items-center gap-1">
                 <User className="w-4 h-4 text-indigo-400" />
-                <span>SmartBuy AI Editorial Team</span>
+                <span>AffiMind Editorial Team</span>
               </div>
             </div>
           </div>
@@ -126,8 +210,10 @@ export const ArticleDetail: React.FC = () => {
 
           {/* Side Suggested products sidebar */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-slate-950 p-6 rounded-2xl border border-slate-850">
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2">
+            
+            {/* Highly Rated Gear */}
+            <div className="bg-slate-950 p-6 rounded-2xl border border-slate-850 animate-fade-in">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2 border-b border-slate-900 pb-2">
                 <Sparkles className="w-4 h-4 text-indigo-400" />
                 <span>Highly Rated Gear</span>
               </h3>
@@ -136,7 +222,7 @@ export const ArticleDetail: React.FC = () => {
                 {suggestedProducts.length > 0 ? (
                   suggestedProducts.map(prod => (
                     <div key={prod.id} className="border-b border-slate-900 pb-4 last:border-0 last:pb-0">
-                      <img src={prod.image} alt={prod.title} referrerPolicy="no-referrer" className="w-full h-24 object-cover rounded-xl mb-2" />
+                      <img src={prod.image} alt={prod.title} referrerPolicy="no-referrer" className="w-full h-24 object-cover rounded-xl mb-2 border border-slate-900" />
                       <h4 className="text-xs font-bold text-white line-clamp-1">{prod.title}</h4>
                       <p className="text-[10px] text-slate-400 font-mono mt-0.5">{prod.price} • Rating: ★{prod.rating}</p>
                       <Link
@@ -150,6 +236,32 @@ export const ArticleDetail: React.FC = () => {
                   ))
                 ) : (
                   <p className="text-xs text-slate-500 italic">Continuous active index tracking underway...</p>
+                )}
+              </div>
+            </div>
+
+            {/* Related Informational Guides (Internal Linking Requirement #12 & Requirement #14) */}
+            <div className="bg-slate-950 p-6 rounded-2xl border border-slate-850">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider mb-4 flex items-center gap-2 border-b border-slate-900 pb-2">
+                <BookOpen className="w-4 h-4 text-pink-400" />
+                <span>Related Guides</span>
+              </h3>
+
+              <div className="space-y-3">
+                {relatedArticles.length > 0 ? (
+                  relatedArticles.map(art => (
+                    <div key={art.id} className="group">
+                      <Link
+                        to={`/article/${art.slug}`}
+                        className="text-xs font-bold text-slate-300 group-hover:text-indigo-400 transition-colors line-clamp-2 leading-snug"
+                      >
+                        {art.title}
+                      </Link>
+                      <span className="text-[9px] font-mono text-slate-500">{new Date(art.createdAt).toLocaleDateString()}</span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-xs text-slate-500 italic">Additional guides are queued for publication...</p>
                 )}
               </div>
             </div>

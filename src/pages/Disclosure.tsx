@@ -34,7 +34,7 @@ export const Disclosure: React.FC = () => {
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-white">How We Earn Income</h2>
             <p>
-              SmartBuy AI is a participant in several affiliate advertising networks, including the <strong>Amazon Services LLC Associates Program</strong>. 
+              AffiMind is a participant in several affiliate advertising networks, including the <strong>Amazon Services LLC Associates Program</strong>. 
               <br /><br />
               This means that several outgoing buttons and hyperlinks point directly to commercial storefronts (like Amazon.com). When a user clicks these links and makes a qualified purchase within a set period of time, we receive a small, percentage-based referral fee or commission.
             </p>
@@ -59,7 +59,7 @@ export const Disclosure: React.FC = () => {
 
           <div className="pt-6 border-t border-slate-900 text-center">
             <Link to="/" className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold underline">
-              Return to SmartBuy AI Homepage
+              Return to AffiMind Homepage
             </Link>
           </div>
 

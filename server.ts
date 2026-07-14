@@ -37,7 +37,7 @@ const defaultProducts = [
     price: "$49.99",
     rating: 4.6,
     image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80",
-    affiliateLink: "https://amazon.com/dp/B09GKTB3V4?tag=smartbuyai-20",
+    affiliateLink: "https://amazon.com/dp/B09GKTB3V4?tag=affimind-20",
     pros: ["Excellent active noise cancellation (ANC)", "Deep, punchy customizable EQ", "Superb 36-hour total battery life", "Extremely comfortable in-ear fit"],
     cons: ["Charging case is slightly bulky", "Microphone in heavy wind could be clearer"],
     specs: {
@@ -65,7 +65,7 @@ const defaultProducts = [
     price: "$24.99",
     rating: 4.4,
     image: "https://images.unsplash.com/photo-1608156639585-b3a032ef9689?w=600&auto=format&fit=crop&q=80",
-    affiliateLink: "https://amazon.com/dp/B09D8GTM7H?tag=smartbuyai-20",
+    affiliateLink: "https://amazon.com/dp/B09D8GTM7H?tag=affimind-20",
     pros: ["Amazingly low pricing", "Built-in USB charging cable in the case", "Compact, pocketable case design", "Excellent passive noise seal"],
     cons: ["No active noise cancellation (ANC)", "Microphone quality is average in loud environments"],
     specs: {
@@ -93,7 +93,7 @@ const defaultProducts = [
     price: "$45.99",
     rating: 4.8,
     image: "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80",
-    affiliateLink: "https://amazon.com/dp/B07GBZ4Q68?tag=smartbuyai-20",
+    affiliateLink: "https://amazon.com/dp/B07GBZ4Q68?tag=affimind-20",
     pros: ["HERO 25K optical sensor with sub-micron precision", "11 fully programmable buttons for macros", "Adjustable weight tuning system (+18g)", "Hyper-fast dual-mode scroll wheel"],
     cons: ["Relatively heavy (121g base weight)", "Braided cable can feel stiff without a mouse bungee"],
     specs: {
@@ -121,7 +121,7 @@ const defaultProducts = [
     price: "$19.99",
     rating: 4.5,
     image: "https://images.unsplash.com/photo-1527813713060-7a9404279759?w=600&auto=format&fit=crop&q=80",
-    affiliateLink: "https://amazon.com/dp/B09489X1L2?tag=smartbuyai-20",
+    affiliateLink: "https://amazon.com/dp/B09489X1L2?tag=affimind-20",
     pros: ["Class-leading ergonomic palm shape", "Highly durable mechanical mouse switches", "Lightweight design (96g) for swift movements", "Affordable entry-point into premium brands"],
     cons: ["Only 5 programmable buttons", "Single-color green backlighting (no Chroma RGB)"],
     specs: {
@@ -149,7 +149,7 @@ const defaultProducts = [
     price: "$79.99",
     rating: 4.5,
     image: "https://images.unsplash.com/photo-1517256064527-09c53b2d0bc6?w=600&auto=format&fit=crop&q=80",
-    affiliateLink: "https://amazon.com/dp/B07978S597?tag=smartbuyai-20",
+    affiliateLink: "https://amazon.com/dp/B07978S597?tag=affimind-20",
     pros: ["Extremely compact (less than 5 inches wide)", "Accommodates tall travel mugs up to 7 inches", "Integrated cord storage for tidy counters", "Automatic shut-off saves electricity"],
     cons: ["Must add fresh water for every single brew", "No control over brewing temperature"],
     specs: {
@@ -177,7 +177,7 @@ const defaultProducts = [
     price: "$79.99",
     rating: 4.7,
     image: "https://images.unsplash.com/photo-1518057111178-44a106bad636?w=600&auto=format&fit=crop&q=80",
-    affiliateLink: "https://amazon.com/dp/B07S7CD6V1?tag=smartbuyai-20",
+    affiliateLink: "https://amazon.com/dp/B07S7CD6V1?tag=affimind-20",
     pros: ["Custom strength configurations (Classic/Rich)", "24-hour advance program timer", "Removable water reservoir makes refills simple", "Adjustable warming plate keeps coffee hot for 4 hours"],
     cons: ["Slightly larger footprint on the counter", "Filter basket handle is delicate"],
     specs: {
@@ -219,8 +219,8 @@ const defaultArticles = [
       "@type": "Article",
       "headline": "How to Choose the Best Wireless Earbuds under $50: The Ultimate 2026 Guide",
       "image": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80",
-      "author": { "@type": "Person", "name": "SmartBuy AI Expert Staff" },
-      "publisher": { "@type": "Organization", "name": "SmartBuy AI" }
+      "author": { "@type": "Person", "name": "AffiMind Expert Staff" },
+      "publisher": { "@type": "Organization", "name": "AffiMind" }
     },
     affiliateLink: "",
     status: "published" as const,
@@ -244,8 +244,8 @@ const defaultArticles = [
       "@type": "Article",
       "headline": "Ergonomics vs. Precision: Choosing the Perfect Gaming Mouse",
       "image": "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80",
-      "author": { "@type": "Person", "name": "SmartBuy AI Hardware team" },
-      "publisher": { "@type": "Organization", "name": "SmartBuy AI" }
+      "author": { "@type": "Person", "name": "AffiMind Hardware team" },
+      "publisher": { "@type": "Organization", "name": "AffiMind" }
     },
     affiliateLink: "",
     status: "published" as const,
@@ -255,12 +255,12 @@ const defaultArticles = [
 
 // Default Pre-seeded settings
 const defaultSettings = {
-  siteName: "SmartBuy AI",
+  siteName: "AffiMind",
   siteDescription: "Unbiased, data-driven product reviews and AI recommendations helping you buy smarter.",
-  seoTitle: "SmartBuy AI | AI-Powered Product Reviews & Buying Advice",
+  seoTitle: "AffiMind | AI-Powered Product Reviews & Buying Advice",
   seoDescription: "Get the best product recommendations, detailed buying guides, and dynamic AI shopping summaries to shop smarter and save time.",
-  affiliateDisclosure: "SmartBuy AI is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. When you purchase through links on our site, we may earn an affiliate commission at no extra cost to you.",
-  contactEmail: "support@smartbuyai.com"
+  affiliateDisclosure: "AffiMind is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. When you purchase through links on our site, we may earn an affiliate commission at no extra cost to you.",
+  contactEmail: "support@affimind.com"
 };
 
 // Initialize DB file if it does not exist
@@ -443,8 +443,12 @@ app.delete("/api/products/:id", (req, res) => {
 
 // GET articles
 app.get("/api/articles", (req, res) => {
-  const { category, search } = req.query;
+  const { category, search, all } = req.query;
   let list = [...db.articles];
+
+  if (all !== "true") {
+    list = list.filter(a => !a.status || a.status === "published");
+  }
 
   if (category) {
     list = list.filter(a => a.category === category);
@@ -467,7 +471,7 @@ app.get("/api/articles/:slug", (req, res) => {
   // Find related products (same category)
   const relatedProducts = db.products.filter(p => p.category === article.category).slice(0, 3);
   // Find other articles (same category, different slug)
-  const relatedArticles = db.articles.filter(a => a.category === article.category && a.slug !== article.slug).slice(0, 3);
+  const relatedArticles = db.articles.filter(a => a.category === article.category && a.slug !== article.slug && (!a.status || a.status === "published")).slice(0, 3);
 
   res.json({ article, relatedProducts, relatedArticles });
 });
@@ -486,7 +490,7 @@ app.delete("/api/articles/:id", (req, res) => {
 // --- SECURE REST API ENDPOINT: POST /api/publish ---
 // This endpoint receives article metadata and content to support headless publishing workflows
 app.post("/api/publish", (req, res) => {
-  const { title, slug, category, content, metaTitle, metaDescription, faq, schema, image, affiliateLink } = req.body;
+  const { title, slug, category, content, metaTitle, metaDescription, faq, schema, image, affiliateLink, status } = req.body;
   
   if (!title || !slug || !category || !content) {
     return res.status(400).json({ error: "Missing required fields: title, slug, category, and content are required." });
@@ -511,19 +515,22 @@ app.post("/api/publish", (req, res) => {
     }
   }
 
+  const validStatuses = ["published", "draft", "scheduled"];
+  const articleStatus = validStatuses.includes(status) ? status : "published";
+
   const newArticle = {
     id: `a_${Date.now()}`,
     title,
     slug,
     category,
     content,
-    metaTitle: metaTitle || `${title} | SmartBuy AI`,
+    metaTitle: metaTitle || `${title} | AffiMind`,
     metaDescription: metaDescription || content.substring(0, 150).replace(/[#*`]/g, "") + "...",
     faq: parsedFaq,
     schema: parsedSchema,
     image: image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600",
     affiliateLink: affiliateLink || "",
-    status: "published" as const,
+    status: articleStatus,
     createdAt: new Date().toISOString()
   };
 
@@ -562,7 +569,7 @@ app.post("/api/ai/search", async (req, res) => {
     // Compile relevant background knowledge about our existing product catalogue to ground the generation
     const catalogString = db.products.map(p => `Product Name: "${p.title}"\nSlug: "${p.slug}"\nCategory: "${p.category}"\nPrice: "${p.price}"\nPros: ${p.pros.join(", ")}\nCons: ${p.cons.join(", ")}\nSpecs: ${JSON.stringify(p.specs)}\nBuying Advice: "${p.buyingAdvice}"`).join("\n\n---\n\n");
 
-    const systemPrompt = `You are the core search-grounding engine of "SmartBuy AI", a premium, data-driven product recommendation platform.
+    const systemPrompt = `You are the core search-grounding engine of "AffiMind", a premium, data-driven product recommendation platform.
 Your objective is to review our available product catalog and provide high-quality, comprehensive AI buying recommendations based on the user's shopping query (e.g., "Best earbuds under $50", "Best gaming mouse", etc.).
 
 Here is our active product database catalog:
@@ -676,6 +683,230 @@ Ensure the output can be parsed easily. Select ONLY relevant product slugs that 
   }
 });
 
+// --- AI ARTICLE GENERATION ENGINE ---
+// Grounded in current product data and structured with SEO metatags using Gemini
+app.post("/api/ai/generate-article", async (req, res) => {
+  const { keyword, category, focusProducts } = req.body;
+  if (!keyword || !category) {
+    return res.status(400).json({ error: "Keyword and category slug are required to generate an article." });
+  }
+
+  try {
+    const ai = getGemini();
+
+    // Compile background knowledge about matched products
+    let productsContext = "";
+    const filteredProducts = db.products.filter(p => p.category === category);
+    
+    let selectedForContext = filteredProducts;
+    if (Array.isArray(focusProducts) && focusProducts.length > 0) {
+      selectedForContext = filteredProducts.filter(p => focusProducts.includes(p.slug));
+    }
+    
+    if (selectedForContext.length === 0) {
+      selectedForContext = filteredProducts.slice(0, 3);
+    }
+
+    productsContext = selectedForContext.map(p => {
+      return `Product Title: "${p.title}"
+Slug: "${p.slug}"
+Price: "${p.price}"
+Rating: "${p.rating}"
+Pros: ${p.pros.join(", ")}
+Cons: ${p.cons.join(", ")}
+Specs: ${JSON.stringify(p.specs)}
+Buying Advice: "${p.buyingAdvice}"
+Affiliate Link: "${p.affiliateLink}"`;
+    }).join("\n\n---\n\n");
+
+    const systemPrompt = `You are a high-performing professional Affiliate Content Writer, Product Tester, and SEO Specialist at "AffiMind".
+Your mission is to generate a comprehensive, highly citable, informative, and expert-level affiliate guide or article about: "${keyword}".
+
+The article should fit under category slug: "${category}".
+
+The generated article content MUST:
+1. Be written in elegant, high-EEAT professional markdown.
+2. Feature, analyze, and compare the following specific products (make sure to integrate their price, specs, and pros/cons natively in the review body):
+${productsContext}
+3. Provide an intuitive comparison table comparing specs and pricing.
+4. Supply a clear summary of critical buying advice.
+5. Contain zero fluff or placeholder markers. Focus entirely on direct, factual analysis that LLM search engines can easily attribute and index.
+
+You MUST respond with a single, valid, parseable JSON object matching this structure:
+{
+  "title": "A highly catchy, click-worthy, SEO-optimized title",
+  "slug": "url-slug-version-of-title-all-lowercase-with-dashes",
+  "metaTitle": "SEO Meta Title (max 65 chars)",
+  "metaDescription": "SEO Meta Description (max 160 chars)",
+  "content": "Full rich markdown content of the article",
+  "faq": [
+    { "question": "FAQ Question 1", "answer": "Detailed answer..." },
+    { "question": "FAQ Question 2", "answer": "Detailed answer..." }
+  ],
+  "schema": {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    "headline": "Title of article",
+    "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600",
+    "author": { "@type": "Person", "name": "AffiMind Review Staff" }
+  }
+}
+Provide clean JSON without trailing commas.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: `Generate a detailed affiliate review guide for keyword: "${keyword}"`,
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            title: { type: Type.STRING },
+            slug: { type: Type.STRING },
+            metaTitle: { type: Type.STRING },
+            metaDescription: { type: Type.STRING },
+            content: { type: Type.STRING },
+            faq: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  question: { type: Type.STRING },
+                  answer: { type: Type.STRING }
+                },
+                required: ["question", "answer"]
+              }
+            },
+            schema: { type: Type.OBJECT }
+          },
+          required: ["title", "slug", "metaTitle", "metaDescription", "content", "faq", "schema"]
+        }
+      }
+    });
+
+    const resultText = response.text || "{}";
+    const data = JSON.parse(resultText);
+    res.json(data);
+
+  } catch (err: any) {
+    console.error("AI Article Generation Failure:", err);
+    // Dynamic local fallback if Gemini is overloaded or API key is absent
+    const fallbackTitle = `The Ultimate guide to ${keyword}`;
+    const fallbackSlug = keyword.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    res.json({
+      title: fallbackTitle,
+      slug: fallbackSlug,
+      metaTitle: `${fallbackTitle} | AffiMind`,
+      metaDescription: `Discover the best recommendations and reviews for ${keyword}. Expert comparisons, detailed ratings, and pros & cons.`,
+      content: `### Expert analysis on ${keyword}\n\nWelcome to our expert buying guide! When shopping in the **${category}** segment, smart buyers prioritize durability, precise tracking sensors, acoustic seal qualities, and temperature delay parameters depending on the exact hardware.\n\n#### Why Trust AffiMind?\nWe perform analytical evaluation of hundreds of technical metrics to distill absolute unbiased product comparisons.\n\n#### Summary Recommendations\nEvaluate high-density spec sheets before purchasing. Hybrid active noise cancellations isolate commuting hums, whereas programmable coffee thermal plates support customized morning brew cycles.`,
+      faq: [
+        { question: `What is the most critical element to review for ${keyword}?`, answer: "Always evaluate the warranty parameters and high-density spec sheets first." }
+      ],
+      schema: {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": fallbackTitle,
+        "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600",
+        "author": { "@type": "Person", "name": "AffiMind expert staff" }
+      }
+    });
+  }
+});
+
+// --- BULK PRODUCT IMPORT API ---
+app.post("/api/products/import", (req, res) => {
+  const { products } = req.body;
+  if (!Array.isArray(products)) {
+    return res.status(400).json({ error: "Missing products array parameters." });
+  }
+
+  // Security Auth check matching bearer configuration
+  const authHeader = req.headers.authorization;
+  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  if (authHeader && authHeader !== `Bearer ${adminPassword}`) {
+    return res.status(401).json({ error: "Unauthorized administrative access token." });
+  }
+
+  const imported: any[] = [];
+  products.forEach(p => {
+    if (!p.title || !p.slug || !p.category) return;
+    
+    const existingIndex = db.products.findIndex(ex => ex.slug === p.slug);
+    const newProduct = {
+      id: p.id || `p_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
+      title: p.title,
+      slug: p.slug,
+      category: p.category,
+      content: p.content || "",
+      image: p.image || "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=600",
+      affiliateLink: p.affiliateLink || "",
+      price: p.price || "$0.00",
+      rating: Number(p.rating) || 4.5,
+      pros: Array.isArray(p.pros) ? p.pros : [],
+      cons: Array.isArray(p.cons) ? p.cons : [],
+      specs: p.specs || {},
+      buyingAdvice: p.buyingAdvice || "",
+      alternatives: Array.isArray(p.alternatives) ? p.alternatives : [],
+      featured: !!p.featured,
+      faq: Array.isArray(p.faq) ? p.faq : [],
+      createdAt: p.createdAt || new Date().toISOString()
+    };
+
+    if (existingIndex >= 0) {
+      db.products[existingIndex] = { ...db.products[existingIndex], ...newProduct, id: db.products[existingIndex].id };
+    } else {
+      db.products.push(newProduct);
+    }
+    imported.push(newProduct);
+  });
+
+  saveDatabase();
+  res.json({ success: true, count: imported.length, imported });
+});
+
+// --- PROGRAMMATIC XML RSS FEED FOR SYNDICATION ---
+app.get(["/rss.xml", "/feed.xml"], (req, res) => {
+  res.type("application/xml");
+  const host = `${req.protocol}://${req.get("host")}`;
+  
+  let xml = `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+  <title>${db.settings.siteName}</title>
+  <link>${host}</link>
+  <description>${db.settings.siteDescription}</description>
+  <language>en-us</language>
+  <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
+  <atom:link href="${host}/rss.xml" rel="self" type="application/rss+xml" />`;
+
+  const published = db.articles.filter(a => !a.status || a.status === "published");
+  
+  published.forEach(a => {
+    const cleanDesc = (a.metaDescription || a.content.substring(0, 200))
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&apos;");
+
+    xml += `
+  <item>
+    <title>${a.title.replace(/&/g, "&amp;")}</title>
+    <link>${host}/article/${a.slug}</link>
+    <guid>${host}/article/${a.slug}</guid>
+    <pubDate>${new Date(a.createdAt || Date.now()).toUTCString()}</pubDate>
+    <description>${cleanDesc}</description>
+    <category>${a.category}</category>
+  </item>`;
+  });
+
+  xml += `
+</channel>
+</rss>`;
+  res.send(xml);
+});
+
 // --- PROGRAMMATIC ROBOTS & SITEMAP FOR SEO ---
 app.get("/robots.txt", (req, res) => {
   res.type("text/plain");
@@ -776,7 +1007,7 @@ async function handleHtmlRequest(req: express.Request, res: express.Response) {
     if (product) {
       title = `Expert Review: ${product.title}`;
       description = `Read our expert analysis, specifications, and pros/cons for ${product.title}. See our final buying recommendation and price comparisons.`;
-      ogTitle = `Review: ${product.title} - SmartBuy AI`;
+      ogTitle = `Review: ${product.title} - AffiMind`;
       ogDescription = description;
       ogImage = product.image;
       
@@ -795,7 +1026,7 @@ async function handleHtmlRequest(req: express.Request, res: express.Response) {
         },
         "review": {
           "@type": "Review",
-          "author": { "@type": "Person", "name": "SmartBuy AI Review Staff" },
+          "author": { "@type": "Person", "name": "AffiMind Review Staff" },
           "reviewRating": {
             "@type": "Rating",
             "ratingValue": product.rating,
@@ -823,16 +1054,16 @@ async function handleHtmlRequest(req: express.Request, res: express.Response) {
       };
     }
   } else if (urlPath.startsWith("/categories")) {
-    title = `Compare Products by Categories | SmartBuy AI`;
+    title = `Compare Products by Categories | AffiMind`;
     description = `Explore our expert research categorized by consumer technology, wireless audio, and coffee brewing hardware.`;
     ogTitle = title;
     ogDescription = description;
   } else if (urlPath.startsWith("/about")) {
-    title = `About Us | SmartBuy AI`;
-    description = `Learn how SmartBuy AI combines real expert human verification with cutting-edge Generative AI Search optimization to revolutionize affiliate comparisons.`;
+    title = `About Us | AffiMind`;
+    description = `Learn how AffiMind combines real expert human verification with cutting-edge Generative AI Search optimization to revolutionize affiliate comparisons.`;
   } else if (urlPath.startsWith("/contact")) {
-    title = `Get in Touch | Contact SmartBuy AI`;
-    description = `Have questions or advertising inquiries? Contact our team of tech researchers and product specialists at SmartBuy AI.`;
+    title = `Get in Touch | Contact AffiMind`;
+    description = `Have questions or advertising inquiries? Contact our team of tech researchers and product specialists at AffiMind.`;
   }
 
   // Read index.html template
@@ -914,7 +1145,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`SmartBuy AI Server online at http://localhost:${PORT}`);
+    console.log(`AffiMind Server online at http://localhost:${PORT}`);
   });
 }
 

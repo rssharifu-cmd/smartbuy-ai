@@ -125,7 +125,7 @@ export const Home: React.FC = () => {
                 type="submit"
                 className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-6 py-3 rounded-xl transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center gap-2"
               >
-                <span>Ask SmartBuy AI</span>
+                <span>Ask AffiMind</span>
                 <Sparkles className="w-4 h-4 text-indigo-300" />
               </button>
             </form>
@@ -357,7 +357,7 @@ export const Home: React.FC = () => {
             
             {newsletterSubscribed ? (
               <div className="bg-emerald-950/50 border border-emerald-900/60 p-4 rounded-xl text-emerald-400 text-sm font-medium">
-                ✓ Success! Thank you for subscribing to our SmartBuy weekly briefings.
+                ✓ Success! Thank you for subscribing to our AffiMind weekly briefings.
               </div>
             ) : (
               <form onSubmit={handleNewsletter} className="flex flex-col sm:flex-row gap-2.5 max-w-md mx-auto">

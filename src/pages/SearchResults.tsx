@@ -107,7 +107,7 @@ export const SearchResults: React.FC = () => {
           <div className="bg-slate-950 border border-slate-850 p-10 rounded-3xl text-center space-y-6 shadow-xl py-20">
             <Loader2 className="w-12 h-12 text-indigo-500 animate-spin mx-auto" />
             <div className="space-y-2 max-w-md mx-auto">
-              <h3 className="text-lg font-bold text-white tracking-tight">SmartBuy AI is compiling reviews...</h3>
+              <h3 className="text-lg font-bold text-white tracking-tight">AffiMind is compiling reviews...</h3>
               <p className="text-xs text-slate-400 animate-pulse leading-relaxed">
                 Reading physical drivers, cross-referencing acoustic reviews, balancing pricing, and organizing specs tables to deliver the optimal list. Please hold.
               </p>
@@ -142,7 +142,7 @@ export const SearchResults: React.FC = () => {
           <div className="bg-slate-950 border border-slate-850 p-8 rounded-3xl text-center space-y-6 shadow-md py-14">
             <Sparkles className="w-12 h-12 text-indigo-500 mx-auto opacity-75" />
             <div className="space-y-2">
-              <h3 className="text-lg font-bold text-white">Ask anything to SmartBuy AI</h3>
+              <h3 className="text-lg font-bold text-white">Ask anything to AffiMind</h3>
               <p className="text-sm text-slate-400 max-w-md mx-auto">Type a budget, a brand, or a product category in the bar above. Our generative engine will synthesize an absolute expert guide for you.</p>
             </div>
           </div>

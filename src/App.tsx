@@ -19,10 +19,10 @@ import { Admin } from "./pages/Admin.tsx";
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
   const [settings, setSettings] = useState({
-    siteName: "SmartBuy AI",
+    siteName: "AffiMind",
     siteDescription: "Optimized AI product recommendations grounded in certified review metrics.",
-    affiliateDisclosure: "SmartBuy AI is a participant in the Amazon Services LLC Associates Program and other advertising networks designed to provide a means to earn fees.",
-    contactEmail: "support@smartbuyai.com"
+    affiliateDisclosure: "AffiMind is a participant in the Amazon Services LLC Associates Program and other advertising networks designed to provide a means to earn fees.",
+    contactEmail: "support@affimind.com"
   });
 
   useEffect(() => {

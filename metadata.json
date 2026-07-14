@@ -1,5 +1,5 @@
 {
-  "name": "SmartBuy AI",
+  "name": "AffiMind",
   "description": "An AI-powered affiliate shopping and product recommendation platform optimized for generative engine search, dynamic buying guides, and expert-level comparisons.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

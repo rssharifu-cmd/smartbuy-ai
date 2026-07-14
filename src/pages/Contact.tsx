@@ -43,7 +43,7 @@ export const Contact: React.FC = () => {
               <div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">General Enquiries</h3>
                 <p className="text-xs text-slate-400 mt-1">Our customer experience staff will reply within 24 working hours.</p>
-                <a href="mailto:support@smartbuyai.com" className="text-indigo-400 hover:text-indigo-300 font-semibold text-xs mt-2 block underline">support@smartbuyai.com</a>
+                <a href="mailto:support@affimind.com" className="text-indigo-400 hover:text-indigo-300 font-semibold text-xs mt-2 block underline">support@affimind.com</a>
               </div>
             </div>
 
@@ -52,7 +52,7 @@ export const Contact: React.FC = () => {
               <div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Editorial Partnerships</h3>
                 <p className="text-xs text-slate-400 mt-1">Reach our hardware reviewers to pitch product submissions or sponsorships.</p>
-                <a href="mailto:editorial@smartbuyai.com" className="text-indigo-400 hover:text-indigo-300 font-semibold text-xs mt-2 block underline">editorial@smartbuyai.com</a>
+                <a href="mailto:editorial@affimind.com" className="text-indigo-400 hover:text-indigo-300 font-semibold text-xs mt-2 block underline">editorial@affimind.com</a>
               </div>
             </div>
 
@@ -60,7 +60,7 @@ export const Contact: React.FC = () => {
               <MapPin className="w-5 h-5 text-indigo-400 mt-0.5 flex-shrink-0" />
               <div>
                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Corporate HQ</h3>
-                <p className="text-xs text-slate-400 mt-1">SmartBuy AI Labs<br />100 Silicon Canal Ave<br />San Francisco, CA 94107</p>
+                <p className="text-xs text-slate-400 mt-1">AffiMind Labs<br />100 Silicon Canal Ave<br />San Francisco, CA 94107</p>
               </div>
             </div>
           </div>

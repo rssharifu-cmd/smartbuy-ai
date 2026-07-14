@@ -53,7 +53,7 @@ export const Header: React.FC<{
             <div className="bg-indigo-600 text-white p-1.5 rounded-lg">
               <Sparkles className="w-5 h-5" />
             </div>
-            <span>SmartBuy<span className="text-indigo-400">AI</span></span>
+            <span>Affi<span className="text-indigo-400">Mind</span></span>
           </Link>
 
           {/* Search bar Desktop */}
@@ -136,7 +136,7 @@ export const Footer: React.FC<{
               <div className="bg-indigo-600 text-white p-1 rounded">
                 <Sparkles className="w-4 h-4" />
               </div>
-              <span>SmartBuy<span className="text-indigo-400">AI</span></span>
+              <span>Affi<span className="text-indigo-400">Mind</span></span>
             </Link>
             <p className="max-w-md text-slate-400 text-sm mb-4">
               {settings.siteDescription} Utilizing cutting-edge Generative AI Search optimization and real research to offer absolute unbiased reviews.

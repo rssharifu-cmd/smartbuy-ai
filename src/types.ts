@@ -36,7 +36,7 @@ export interface Article {
   image: string;
   affiliateLink?: string;
   createdAt: string;
-  status: 'draft' | 'published';
+  status: 'draft' | 'published' | 'scheduled';
 }
 
 export interface Category {

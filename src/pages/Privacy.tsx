@@ -30,7 +30,7 @@ export const Privacy: React.FC = () => {
               <span>1. Information We Collect</span>
             </h2>
             <p>
-              SmartBuy AI operates as an informational review platform. We collect minimal personal parameters. This includes information you explicitly supply (such as name and email on our newsletter registration and support contact forms) and automated diagnostic metrics (such as cookies, browser user-agents, IP addresses, and page-clicks tracked for analytics and security).
+              AffiMind operates as an informational review platform. We collect minimal personal parameters. This includes information you explicitly supply (such as name and email on our newsletter registration and support contact forms) and automated diagnostic metrics (such as cookies, browser user-agents, IP addresses, and page-clicks tracked for analytics and security).
             </p>
           </section>
 
@@ -57,13 +57,13 @@ export const Privacy: React.FC = () => {
           <section className="space-y-2">
             <h2 className="text-lg font-bold text-white">4. User Rights</h2>
             <p>
-              You have the full right to inquire about, request a download of, or request the complete deletion of any personal email data we retain. Contact our privacy team at <a href="mailto:support@smartbuyai.com" className="text-indigo-400 hover:underline">support@smartbuyai.com</a> and we will finalize your request immediately.
+              You have the full right to inquire about, request a download of, or request the complete deletion of any personal email data we retain. Contact our privacy team at <a href="mailto:support@affimind.com" className="text-indigo-400 hover:underline">support@affimind.com</a> and we will finalize your request immediately.
             </p>
           </section>
 
           <div className="pt-6 border-t border-slate-900 text-center">
             <Link to="/" className="text-xs text-indigo-400 hover:text-indigo-300 font-semibold underline">
-              Return to SmartBuy AI Homepage
+              Return to AffiMind Homepage
             </Link>
           </div>
 

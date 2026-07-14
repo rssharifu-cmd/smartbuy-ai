@@ -18,7 +18,7 @@ export const About: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5 fill-indigo-400" />
             Our Core Mission
           </div>
-          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight mb-4">About SmartBuy AI</h1>
+          <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight mb-4">About AffiMind</h1>
           <p className="text-slate-400 max-w-2xl mx-auto text-sm sm:text-base leading-relaxed">
             Re-inventing product comparisons for the age of Generative Engine Optimization (GEO) and AI-driven consumer research.
           </p>
@@ -30,11 +30,11 @@ export const About: React.FC = () => {
           <div className="bg-slate-950 p-6 sm:p-8 rounded-3xl border border-slate-850 relative overflow-hidden grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
             <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500 rounded-full blur-3xl opacity-5"></div>
             <div>
-              <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">Why we built SmartBuy AI</h2>
+              <h2 className="text-xl sm:text-2xl font-bold text-white mb-4">Why we built AffiMind</h2>
               <p className="text-sm text-slate-300 leading-relaxed space-y-4">
                 Traditional product search is broken. Standard comparison websites are saturated with intrusive banner ads, paid sponsorships, and circular blogs that pad word counts instead of delivering answers.
                 <br /><br />
-                We built SmartBuy AI to offer immediate, structured, data-grounded insights. By marrying real expert manual reviews with advanced Gemini AI models, we deliver concise pros, cons, and specifications instantly.
+                We built AffiMind to offer immediate, structured, data-grounded insights. By marrying real expert manual reviews with advanced Gemini AI models, we deliver concise pros, cons, and specifications instantly.
               </p>
             </div>
             <div className="space-y-4">

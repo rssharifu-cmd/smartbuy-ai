@@ -1,0 +1,375 @@
+{
+  "categories": [
+    {
+      "id": "1",
+      "name": "Wireless Earbuds",
+      "slug": "earbuds",
+      "description": "Unbiased reviews of the best budget, active noise cancellation, and high-fidelity wireless audio.",
+      "iconName": "Headphones"
+    },
+    {
+      "id": "2",
+      "name": "Gaming Mice",
+      "slug": "gaming-mice",
+      "description": "Expert precision tests, weight systems, ergonomics, and sensor analyses of professional gaming mice.",
+      "iconName": "Mouse"
+    },
+    {
+      "id": "3",
+      "name": "Coffee Makers",
+      "slug": "coffee-makers",
+      "description": "Comprehensive reviews of programmable drip brewers, single-serve espresso makers, and budget grinders.",
+      "iconName": "Coffee"
+    }
+  ],
+  "products": [
+    {
+      "id": "p1",
+      "title": "Soundcore Life P3i Wireless Earbuds",
+      "slug": "soundcore-life-p3i-review",
+      "category": "earbuds",
+      "price": "$49.99",
+      "rating": 4.6,
+      "image": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80",
+      "affiliateLink": "https://amazon.com/dp/B09GKTB3V4?tag=affimind-20",
+      "pros": [
+        "Excellent active noise cancellation (ANC)",
+        "Deep, punchy customizable EQ",
+        "Superb 36-hour total battery life",
+        "Extremely comfortable in-ear fit"
+      ],
+      "cons": [
+        "Charging case is slightly bulky",
+        "Microphone in heavy wind could be clearer"
+      ],
+      "specs": {
+        "Driver Size": "10mm Graphene Drivers",
+        "Noise Cancellation": "Hybrid Active Noise Cancellation (ANC)",
+        "Battery Life": "9 Hours (36 Hours with Charging Case)",
+        "Water Resistance": "IPX5 Sweatproof",
+        "Bluetooth Version": "Bluetooth 5.2"
+      },
+      "faq": [
+        {
+          "question": "Do these support wireless charging?",
+          "answer": "No, the Soundcore Life P3i charging case is charged exclusively via USB-C."
+        },
+        {
+          "question": "Can I use either earbud independently?",
+          "answer": "Yes, both left and right earbuds support single-bud mono mode."
+        }
+      ],
+      "buyingAdvice": "For under $50, this is the absolute industry leader in active noise cancellation and customizable EQ. Best suited for daily commuters, students, and bass lovers.",
+      "alternatives": [
+        "jlab-go-air-pop-review"
+      ],
+      "content": "### Expert Soundcore Life P3i Analysis\n\nThe Soundcore Life P3i offers incredible hybrid active noise cancellation at an unbeatable price point. Sporting 10mm graphene drivers, it delivers a rich, textured audio signature with booming bass and crisp highs. Through the Soundcore companion app, users can customize their experience with a full 8-band graphic EQ and choose from 22 pre-programmed sound profiles.\n\n#### Audio Performance & Noise Isolation\nIn our tests, the active noise cancellation isolated low-frequency drone noises (like aircraft engines and traffic) with surprising efficiency, matching earbuds twice its price. The transparency mode also functions exceptionally well, offering clear ambient awareness without artificial statics.\n\n#### Fit & Utility\nWith its ergonomic stem-design and three sets of soft silicone ear tips, the Life P3i locks in securely and remains comfortable for long workout sessions or heavy workdays.",
+      "featured": true,
+      "createdAt": "2026-01-10T08:00:00.000Z"
+    },
+    {
+      "id": "p2",
+      "title": "JLab Go Air Pop Wireless Earbuds",
+      "slug": "jlab-go-air-pop-review",
+      "category": "earbuds",
+      "price": "$24.99",
+      "rating": 4.4,
+      "image": "https://images.unsplash.com/photo-1608156639585-b3a032ef9689?w=600&auto=format&fit=crop&q=80",
+      "affiliateLink": "https://amazon.com/dp/B09D8GTM7H?tag=affimind-20",
+      "pros": [
+        "Amazingly low pricing",
+        "Built-in USB charging cable in the case",
+        "Compact, pocketable case design",
+        "Excellent passive noise seal"
+      ],
+      "cons": [
+        "No active noise cancellation (ANC)",
+        "Microphone quality is average in loud environments"
+      ],
+      "specs": {
+        "Driver Size": "6mm Dynamic Drivers",
+        "Noise Cancellation": "Passive Noise Isolation",
+        "Battery Life": "8 Hours (32 Hours with Charging Case)",
+        "Water Resistance": "IPX4 Splashproof",
+        "Bluetooth Version": "Bluetooth 5.1"
+      },
+      "faq": [
+        {
+          "question": "How do I charge these earbuds?",
+          "answer": "The case has a built-in USB-A cable attached to the bottom. You can plug the case directly into any standard USB-A charging port."
+        },
+        {
+          "question": "Are there EQ modes?",
+          "answer": "Yes, JLab features 3 built-in EQ settings: JLab Signature, Balanced, and Bass Boost. You can toggle them by triple-tapping either earbud without needing an app."
+        }
+      ],
+      "buyingAdvice": "If your budget is strictly under $30, this is the most reliable, durable, and battery-friendly pair of earbuds available. Extremely practical for school bags, gym lockers, and emergency backups.",
+      "alternatives": [
+        "soundcore-life-p3i-review"
+      ],
+      "content": "### JLab Go Air Pop In-Depth Review\n\nThe JLab Go Air Pop redefined the ultra-budget audio tier upon release. For less than $25, JLab provides an astonishingly robust build, responsive touch controls, and standard sweat resistance. The standout design feature is the integrated USB charging cable, which folds neatly into the bottom of the charging case so you are never left searching for a cord.\n\n#### Acoustic Profile\nWhile it lacks active noise cancellation, the acoustic nozzle locks securely into the canal, providing top-tier passive sound isolation. Sound signature favors a classic warm curve with a punchy mid-bass bump. Toggling the 'JLab Signature' EQ brings forward vocals cleanly, making podcasts and acoustic tracks sound remarkably crisp for the price.",
+      "featured": false,
+      "createdAt": "2026-02-15T09:30:00.000Z"
+    },
+    {
+      "id": "p3",
+      "title": "Logitech G502 HERO Gaming Mouse",
+      "slug": "logitech-g502-hero-review",
+      "category": "gaming-mice",
+      "price": "$45.99",
+      "rating": 4.8,
+      "image": "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80",
+      "affiliateLink": "https://amazon.com/dp/B07GBZ4Q68?tag=affimind-20",
+      "pros": [
+        "HERO 25K optical sensor with sub-micron precision",
+        "11 fully programmable buttons for macros",
+        "Adjustable weight tuning system (+18g)",
+        "Hyper-fast dual-mode scroll wheel"
+      ],
+      "cons": [
+        "Relatively heavy (121g base weight)",
+        "Braided cable can feel stiff without a mouse bungee"
+      ],
+      "specs": {
+        "Sensor Type": "HERO 25K Optical Sensor",
+        "DPI Range": "100 - 25,600 DPI",
+        "Max Acceleration": "> 40G",
+        "Weight": "121g (includes five 3.6g adjustable weights)",
+        "Button Count": "11 Programmable Buttons"
+      },
+      "faq": [
+        {
+          "question": "Is the G502 HERO wireless?",
+          "answer": "No, this is the wired version of the G502 featuring a high-durability braided cable. Logitech offers the G502 LIGHTSPEED for those seeking wireless capabilities."
+        },
+        {
+          "question": "Can I save profiles to the mouse hardware?",
+          "answer": "Yes, the G502 HERO has onboard memory to store up to 5 profiles configured through Logitech G HUB software."
+        }
+      ],
+      "buyingAdvice": "A legendary weapon in the gaming community. This is an unparalleled choice for RPGs, MMOs, and video editors who require custom key bindings, precise heavy weight configurations, and bulletproof sensor reliability.",
+      "alternatives": [
+        "razer-deathadder-essential-review"
+      ],
+      "content": "### Logitech G502 HERO Expert Analysis\n\nThe Logitech G502 HERO features a legendary ergonomic shell paired with Logitech's class-leading HERO 25K optical tracking engine. This sensor is capable of tracking speeds over 400 IPS with zero smoothing, filtering, or acceleration, ensuring that every hand sweep translates with pixel-perfect precision on screen.\n\n#### Physical Customization\nThe undercarriage features a magnetic door enclosing a custom slot for five 3.6g weights. This allows players to balance center of gravity or add weight based on personal sliding preference. The iconic metal scroll wheel supports standard notched scrolling and, with a quick button click, free-wheels indefinitely for rapid web browsing or map zooming.\n\n#### Customizability\nWith 11 customizable input nodes, macros can be bound with ease, making complex weapon selections, inventory loops, and spreadsheet formulas accessible instantly.",
+      "featured": true,
+      "createdAt": "2026-03-01T10:00:00.000Z"
+    },
+    {
+      "id": "p4",
+      "title": "Razer DeathAdder Essential Gaming Mouse",
+      "slug": "razer-deathadder-essential-review",
+      "category": "gaming-mice",
+      "price": "$19.99",
+      "rating": 4.5,
+      "image": "https://images.unsplash.com/photo-1527813713060-7a9404279759?w=600&auto=format&fit=crop&q=80",
+      "affiliateLink": "https://amazon.com/dp/B09489X1L2?tag=affimind-20",
+      "pros": [
+        "Class-leading ergonomic palm shape",
+        "Highly durable mechanical mouse switches",
+        "Lightweight design (96g) for swift movements",
+        "Affordable entry-point into premium brands"
+      ],
+      "cons": [
+        "Only 5 programmable buttons",
+        "Single-color green backlighting (no Chroma RGB)"
+      ],
+      "specs": {
+        "Sensor Type": "6,400 DPI Optical Sensor",
+        "Max Speed": "220 IPS",
+        "Switch Lifecycle": "10 Million Clicks",
+        "Weight": "96g (cable excluded)",
+        "Button Count": "5 Programmable Buttons"
+      },
+      "faq": [
+        {
+          "question": "Can I customize the LED color?",
+          "answer": "No, the Razer DeathAdder Essential is configured with a static signature green backlighting that cannot be changed."
+        },
+        {
+          "question": "Is this mouse suitable for claw grip?",
+          "answer": "While it works for larger claw-grip hands, the DeathAdder series is primarily engineered to offer ultimate ergonomic comfort for palm and relaxed claw grips."
+        }
+      ],
+      "buyingAdvice": "An exceptional budget gaming mouse from a premier brand. Highly recommended for tactical shooter players and general office workers seeking legendary ergonomic hand support at a minimal cost.",
+      "alternatives": [
+        "logitech-g502-hero-review"
+      ],
+      "content": "### Razer DeathAdder Essential Performance Review\n\nThe Razer DeathAdder Essential retains the iconic, sweeping ergonomic silhouette that has earned the DeathAdder family over 15 million units in global sales. It is uniquely engineered to curve naturally into the palm of the right hand, minimizing muscle tension during grueling marathons.\n\n#### Sensor & Switches\nWhile it uses a simpler 6,400 DPI optical sensor compared to high-end Razer models, tracking remains exceptionally consistent with zero artificial acceleration. The primary left/right mechanical switches provide clean tactile feedback with a satisfying click and are certified for a 10-million click lifecycle.",
+      "featured": false,
+      "createdAt": "2026-03-12T14:20:00.000Z"
+    },
+    {
+      "id": "p5",
+      "title": "Keurig K-Mini Single Serve Coffee Maker",
+      "slug": "keurig-k-mini-review",
+      "category": "coffee-makers",
+      "price": "$79.99",
+      "rating": 4.5,
+      "image": "https://images.unsplash.com/photo-1517256064527-09c53b2d0bc6?w=600&auto=format&fit=crop&q=80",
+      "affiliateLink": "https://amazon.com/dp/B07978S597?tag=affimind-20",
+      "pros": [
+        "Extremely compact (less than 5 inches wide)",
+        "Accommodates tall travel mugs up to 7 inches",
+        "Integrated cord storage for tidy counters",
+        "Automatic shut-off saves electricity"
+      ],
+      "cons": [
+        "Must add fresh water for every single brew",
+        "No control over brewing temperature"
+      ],
+      "specs": {
+        "Type": "Pod Brewing System",
+        "Width": "4.5 Inches Wide",
+        "Reservoir Capacity": "1 Cup Max (6 to 12oz)",
+        "Brew Time": "Approx. 2 Minutes",
+        "Power Rating": "1470 Watts"
+      },
+      "faq": [
+        {
+          "question": "Does this store water in an internal tank?",
+          "answer": "No, the reservoir only holds the water you pour in for that specific brew. If you put in 8oz, it brews 8oz."
+        },
+        {
+          "question": "Can I use reusable coffee pods?",
+          "answer": "Yes, the K-Mini is compatible with the Keurig My K-Cup Universal Reusable Coffee Filter."
+        }
+      ],
+      "buyingAdvice": "Perfect for minimalist college dorm rooms, single workspaces, compact RVs, and apartments where counter real estate is at a premium.",
+      "alternatives": [
+        "ninja-ce251-review"
+      ],
+      "content": "### Keurig K-Mini Single Serve Review\n\nThe Keurig K-Mini combines compact engineering with simple, direct pod convenience. Under five inches wide, it can squeeze into virtually any corner of your kitchen or office desk. Operation is incredibly simple: add water to the rear well, insert a K-Cup pod, close the handle, and press brew.\n\n#### Brew Performance\nThe coffee is dispensed hot and fresh in about two minutes. By removing the drip tray base, the machine can comfortably hold travel mugs up to 7 inches tall. Additionally, the unit automatically turns off 90 seconds after brewing, securing energy conservation.",
+      "featured": true,
+      "createdAt": "2026-04-05T07:15:00.000Z"
+    },
+    {
+      "id": "p6",
+      "title": "Ninja CE251 Programmable Coffee Maker",
+      "slug": "ninja-ce251-review",
+      "category": "coffee-makers",
+      "price": "$79.99",
+      "rating": 4.7,
+      "image": "https://images.unsplash.com/photo-1518057111178-44a106bad636?w=600&auto=format&fit=crop&q=80",
+      "affiliateLink": "https://amazon.com/dp/B07S7CD6V1?tag=affimind-20",
+      "pros": [
+        "Custom strength configurations (Classic/Rich)",
+        "24-hour advance program timer",
+        "Removable water reservoir makes refills simple",
+        "Adjustable warming plate keeps coffee hot for 4 hours"
+      ],
+      "cons": [
+        "Slightly larger footprint on the counter",
+        "Filter basket handle is delicate"
+      ],
+      "specs": {
+        "Type": "12-Cup Drip Brewer",
+        "Reservoir Capacity": "60oz (Removable)",
+        "Strength Settings": "Classic Brew and Rich Brew",
+        "Gold-Tone Filter": "Reusable Filter Included",
+        "Warming Plate Control": "Adjustable (Up to 4 Hours)"
+      },
+      "faq": [
+        {
+          "question": "Can I brew smaller batches?",
+          "answer": "Yes, the CE251 has a specialized 'Small Batch' function that optimizes extraction water-flow specifically for brewing 1 to 4 cups without loss of flavor."
+        },
+        {
+          "question": "Is the carafe dishwasher safe?",
+          "answer": "The glass carafe should be hand-washed, but the removable water tank and permanent filter are top-rack dishwasher safe."
+        }
+      ],
+      "buyingAdvice": "The absolute gold standard for families and office teams who want programmable drip convenience, thermal extraction quality, and rich morning coffee ready upon waking.",
+      "alternatives": [
+        "keurig-k-mini-review"
+      ],
+      "content": "### Ninja CE251 Programmable Drip Review\n\nThe Ninja CE251 is a powerhouse drip coffee maker that out-extracts traditional brewers. Ninja uses an advanced thermal flavor extraction system that ensures even water saturating over the coffee grounds, achieving professional-grade bloom and extraction temperature.\n\n#### Programmability & Strength\nUsers can set the delay brew timer up to 24 hours in advance, ensuring fresh, hot coffee when you wake up. The 'Rich Brew' setting slows water flow to extend extraction time, providing a bold, robust brew that cuts beautifully through milk or creamer.",
+      "featured": false,
+      "createdAt": "2026-04-20T08:30:00.000Z"
+    }
+  ],
+  "articles": [
+    {
+      "id": "a1",
+      "title": "How to Choose the Best Wireless Earbuds under $50: The Ultimate 2026 Guide",
+      "slug": "how-to-choose-best-wireless-earbuds-under-50",
+      "category": "earbuds",
+      "image": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80",
+      "metaTitle": "Best Wireless Earbuds Under $50: Complete 2026 Buying Guide",
+      "metaDescription": "Can you get good active noise cancellation and sound under $50? Read our comprehensive buyer's guide to see what features, battery lifespans, and brands to trust.",
+      "content": "### Buying Guide for Budget Wireless Earbuds\n\nWhen shopping for wireless earbuds under $50, you no longer have to settle for cheap, tinny sound. Modern advancements in Bluetooth chipsets and dynamic speaker composites mean that entry-level audio equipment can compete with legacy flagships. Here are the core factors to look for when choosing budget earbuds:\n\n1. **Active Noise Cancellation (ANC):** Modern budget chips now support hybrid ANC. Look for brands like Soundcore and Earfun that offer customizable ANC modes.\n2. **Battery Life:** Aim for at least 6 hours of playtime per charge. The case should provide an additional 2-3 full charges.\n3. **Water Resistance:** An IPX4 or IPX5 rating ensures your earbuds survive sweaty workouts and light rain.\n\n#### The Importance of Eartip Fit\nEven the most expensive driver will sound flat and tinny if the seal inside your ear is weak. Make sure to try all included silicone tip sizes. A secure seal increases sub-bass resonance and isolates outside noises naturally, boosting the effectiveness of ANC.",
+      "faq": [
+        {
+          "question": "Can I get real active noise cancellation for under $50?",
+          "answer": "Absolutely. Soundcore and several other budget brands utilize hybrid feed-forward/feedback ANC that blocks up to 35dB of low-frequency noises."
+        },
+        {
+          "question": "What is the difference between IPX4 and IPX5?",
+          "answer": "IPX4 protects against splashes of water from any direction, while IPX5 protects against direct low-pressure jets of water. Both are fine for standard gym sweating."
+        }
+      ],
+      "schema": {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "How to Choose the Best Wireless Earbuds under $50: The Ultimate 2026 Guide",
+        "image": "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80",
+        "author": {
+          "@type": "Person",
+          "name": "AffiMind Expert Staff"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "AffiMind"
+        }
+      },
+      "affiliateLink": "",
+      "status": "published",
+      "createdAt": "2026-05-01T12:00:00.000Z"
+    },
+    {
+      "id": "a2",
+      "title": "Ergonomics vs. Precision: Choosing the Perfect Gaming Mouse",
+      "slug": "ergonomics-vs-precision-gaming-mouse-guide",
+      "category": "gaming-mice",
+      "image": "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80",
+      "metaTitle": "Gaming Mouse Guide: Ergonomics vs Precision Sensor Performance",
+      "metaDescription": "Contemplating a new gaming mouse? Read our guide on palm vs claw grips, HERO sensors, DPI configs, and how to find the perfect mouse for your gaming style.",
+      "content": "### Ergonomics vs. Precision: Finding Your Ideal Gaming Mouse\n\nYour mouse is your primary weapon. Choosing the right one depends heavily on your grip style, hand size, and game genres:\n\n* **Palm Grip:** Prefers large, contoured mice like the Razer DeathAdder series for full-hand resting.\n* **Claw/Fingertip Grip:** Prefers lighter, symmetrical mice for faster flick adjustments.\n* **DPI & Sensor Precision:** While marketing departments boast 25K+ DPI, most pro gamers play at 400 to 1600 DPI. Look for reliable sensors (like Logitech HERO) that guarantee zero jitter or prediction.\n\n#### Weight Preferences: Ultra-Lightweight vs Heavy Weight Systems\nIn recent years, competitive shooter players have leaned heavily toward ultra-lightweight mice (sub-60 grams) to facilitate rapid movements and minimize arm strain. However, RPG, MMO, and production users often prefer weighted mice with dedicated weight cartridges to smooth out micro-tremors and supply custom tactile glide.",
+      "faq": [
+        {
+          "question": "Is a higher DPI always better for gaming?",
+          "answer": "No, a higher DPI increases cursor sensitivity but doesn't necessarily improve precision. Real precision comes from sensor tracking consistency and a polling rate of 1000Hz or above."
+        },
+        {
+          "question": "What is an optical mouse switch?",
+          "answer": "Unlike mechanical switches that contact metal, optical switches use an infrared light beam to register clicks. This eliminates debounce delay and drastically increases durability."
+        }
+      ],
+      "schema": {
+        "@context": "https://schema.org",
+        "@type": "Article",
+        "headline": "Ergonomics vs. Precision: Choosing the Perfect Gaming Mouse",
+        "image": "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80",
+        "author": {
+          "@type": "Person",
+          "name": "AffiMind Hardware team"
+        },
+        "publisher": {
+          "@type": "Organization",
+          "name": "AffiMind"
+        }
+      },
+      "affiliateLink": "",
+      "status": "published",
+      "createdAt": "2026-05-15T15:30:00.000Z"
+    }
+  ],
+  "settings": {
+    "siteName": "AffiMind",
+    "siteDescription": "Unbiased, data-driven product reviews and AI recommendations helping you buy smarter.",
+    "seoTitle": "AffiMind | AI-Powered Product Reviews & Buying Advice",
+    "seoDescription": "Get the best product recommendations, detailed buying guides, and dynamic AI shopping summaries to shop smarter and save time.",
+    "affiliateDisclosure": "AffiMind is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. When you purchase through links on our site, we may earn an affiliate commission at no extra cost to you.",
+    "contactEmail": "support@affimind.com"
+  }
+}
