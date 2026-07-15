@@ -28,6 +28,11 @@ export const Admin: React.FC = () => {
   const [generationState, setGenerationState] = useState<"idle" | "researching" | "writing" | "publishing" | "completed">("idle");
   const [generatedOutput, setGeneratedOutput] = useState<{ product: Product; article: Article; supabaseSaved: boolean } | null>(null);
 
+  // Manual Product Generator Form State
+  const [manualProductName, setManualProductName] = useState("");
+  const [manualAffiliateLink, setManualAffiliateLink] = useState("");
+  const [manualCategory, setManualCategory] = useState("auto");
+
   // Supabase Connectivity Check State
   const [supabaseStatus, setSupabaseStatus] = useState<{
     checked: boolean;
@@ -482,15 +487,25 @@ export const Admin: React.FC = () => {
     }
   };
 
-  // Generate Today's Product
-  const handleGenerateTodayProduct = async () => {
+  // Generate Manual Product
+  const handleGenerateTodayProduct = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!manualProductName.trim()) {
+      showStatus("error", "Product Name is required.");
+      return;
+    }
+    if (!manualAffiliateLink.trim()) {
+      showStatus("error", "Affiliate Link is required.");
+      return;
+    }
+
     setGenerationState("researching");
     setGeneratedOutput(null);
 
     // Sequence timing simulations for progress visibility (Researching -> Writing -> Publishing -> Completed)
     const timingSequence = [
-      { state: "writing" as const, delay: 2200 },
-      { state: "publishing" as const, delay: 4800 }
+      { state: "writing" as const, delay: 2500 },
+      { state: "publishing" as const, delay: 6000 }
     ];
 
     const timers = timingSequence.map(t => 
@@ -510,7 +525,12 @@ export const Admin: React.FC = () => {
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}`
-        }
+        },
+        body: JSON.stringify({
+          productName: manualProductName,
+          affiliateLink: manualAffiliateLink,
+          category: manualCategory
+        })
       });
 
       // Clear standard sequence timers so final actual state sets cleanly
@@ -520,7 +540,12 @@ export const Admin: React.FC = () => {
         const data = await res.json();
         setGenerationState("completed");
         setGeneratedOutput(data);
-        showStatus("success", "✨ Today's Recommended Product review and index published successfully!");
+        showStatus("success", `✨ Product review and buying guide for "${manualProductName}" generated and published successfully!`);
+
+        // Clear input form fields
+        setManualProductName("");
+        setManualAffiliateLink("");
+        setManualCategory("auto");
 
         // Trigger reactive hot reloads of sitemaps/product arrays inside Admin view
         const [artRes, prodRes] = await Promise.all([
@@ -532,7 +557,7 @@ export const Admin: React.FC = () => {
       } else {
         const errData = await res.json();
         setGenerationState("idle");
-        showStatus("error", errData.error || "Failed to generate today's product.");
+        showStatus("error", errData.error || "Failed to generate product review.");
       }
     } catch (err) {
       timers.forEach(clearTimeout);
@@ -671,101 +696,151 @@ export const Admin: React.FC = () => {
           </div>
         )}
 
-        {/* ✨ Generate Today's Product Action Card */}
-        <div className="bg-gradient-to-r from-indigo-950/50 via-slate-950/40 to-pink-950/30 border border-slate-800 rounded-3xl p-6 sm:p-8 mb-8 shadow-xl relative overflow-hidden backdrop-blur-sm">
+        {/* ✨ Generate Today's Product Action Card (Manual Input Form) */}
+        <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-8 mb-8 shadow-2xl relative overflow-hidden backdrop-blur-sm">
           <div className="absolute top-0 right-0 p-8 opacity-5 pointer-events-none">
             <Sparkles className="w-48 h-48 text-indigo-400" />
           </div>
-          <div className="max-w-2xl space-y-4 relative z-10">
-            <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">One-Click Editorial Engine</span>
-            </div>
-            <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">✨ Generate Today's Recommended Product</h2>
-            <p className="text-xs sm:text-sm text-slate-350 leading-relaxed">
-              Click below to dynamically select a product, perform deep research using Gemini, draft an expert-level review with SEO metadata and schema, and publish immediately to both your local index and Supabase database.
-            </p>
-
-            {/* Supabase Connection Status bar */}
-            <div className="flex flex-wrap items-center gap-2 pt-1 pb-1">
-              <span className="text-[11px] text-slate-400 font-bold uppercase tracking-wider">Supabase Sync:</span>
-              {checkingSupabase ? (
-                <span className="text-[11px] text-indigo-400 animate-pulse flex items-center gap-1.5 font-semibold">
-                  <span className="w-2 h-2 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></span>
-                  Pinging Supabase...
-                </span>
-              ) : supabaseStatus?.checked ? (
-                supabaseStatus.connected && supabaseStatus.tablesExist ? (
-                  <span className="text-[11px] text-emerald-400 font-extrabold flex items-center gap-1.5 bg-emerald-950/40 px-3 py-1 rounded-full border border-emerald-900/30">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    Connected & Verified (Auto-Sync Active)
-                  </span>
-                ) : supabaseStatus.configured ? (
-                  <span className="text-[11px] text-amber-400 font-extrabold flex items-center gap-1.5 bg-amber-950/40 px-3 py-1 rounded-full border border-amber-900/30" title={supabaseStatus.message}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-                    Tables Missing (Click "Supabase Schema SQL" tab to resolve)
-                  </span>
-                ) : (
-                  <span className="text-[11px] text-slate-400 font-extrabold flex items-center gap-1.5 bg-slate-900/80 px-3 py-1 rounded-full border border-slate-800" title={supabaseStatus.message}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
-                    Not Configured (Skipping Sync / Local Only)
-                  </span>
-                )
-              ) : (
-                <button
-                  onClick={checkSupabaseConnectivity}
-                  className="text-[11px] text-indigo-400 hover:text-indigo-300 hover:underline font-extrabold cursor-pointer"
-                >
-                  Verify Connection Status
-                </button>
-              )}
-            </div>
-
-            {/* Action Area */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-2">
-              <button
-                onClick={handleGenerateTodayProduct}
-                disabled={generationState !== "idle"}
-                className={`px-6 py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2.5 transition-all shadow-lg select-none ${
-                  generationState === "idle"
-                    ? "bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-90 active:scale-[0.98] text-white shadow-indigo-500/10 cursor-pointer"
-                    : "bg-slate-800 text-slate-500 border border-slate-750 cursor-not-allowed"
-                }`}
-              >
-                {generationState === "idle" ? (
-                  <>
-                    <Sparkles className="w-4 h-4 text-white animate-pulse" />
-                    <span>Generate Today's Product</span>
-                  </>
-                ) : (
-                  <>
-                    <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
-                    <span>Generating...</span>
-                  </>
-                )}
-              </button>
-
-              {/* Progress Tracker UI */}
-              {generationState !== "idle" && (
-                <div className="flex items-center gap-2 text-xs font-semibold select-none overflow-x-auto py-1">
-                  <span className={generationState === "researching" ? "text-indigo-400 font-extrabold animate-pulse bg-indigo-950/40 px-2.5 py-1 rounded-lg border border-indigo-900/30" : "text-slate-550"}>
-                    Researching...
-                  </span>
-                  <span className="text-slate-750">→</span>
-                  <span className={generationState === "writing" ? "text-purple-400 font-extrabold animate-pulse bg-purple-950/40 px-2.5 py-1 rounded-lg border border-purple-900/30" : "text-slate-550"}>
-                    Writing...
-                  </span>
-                  <span className="text-slate-750">→</span>
-                  <span className={generationState === "publishing" ? "text-pink-400 font-extrabold animate-pulse bg-pink-950/40 px-2.5 py-1 rounded-lg border border-pink-900/30" : "text-slate-550"}>
-                    Publishing...
-                  </span>
-                  <span className="text-slate-750">→</span>
-                  <span className={generationState === "completed" ? "text-emerald-400 font-extrabold bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-900/30" : "text-slate-550"}>
-                    Completed.
-                  </span>
+          <div className="space-y-6 relative z-10">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="space-y-1">
+                <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 px-3 py-1 rounded-full">
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">AI Editorial Guide Generator</span>
                 </div>
-              )}
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Manual Product Review & Buying Guide Generator</h2>
+                <p className="text-xs sm:text-sm text-slate-400 leading-relaxed max-w-3xl">
+                  Provide a product name and affiliate link. Gemini will automatically research the product, write a professional buying guide, optimize SEO, compile FAQs, generate rich JSON-LD Schema markup, and insert natural internal links before publishing immediately.
+                </p>
+              </div>
+
+              {/* Supabase Connection Status bar */}
+              <div className="flex items-center self-start sm:self-center gap-2 bg-slate-950/80 px-4 py-2 rounded-2xl border border-slate-850">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Supabase Sync:</span>
+                {checkingSupabase ? (
+                  <span className="text-[11px] text-indigo-400 animate-pulse flex items-center gap-1.5 font-semibold">
+                    <span className="w-2 h-2 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin"></span>
+                    Verifying...
+                  </span>
+                ) : supabaseStatus?.checked ? (
+                  supabaseStatus.connected && supabaseStatus.tablesExist ? (
+                    <span className="text-[11px] text-emerald-400 font-extrabold flex items-center gap-1.5" title="Auto-Sync and tables verified.">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                      Active
+                    </span>
+                  ) : supabaseStatus.configured ? (
+                    <span className="text-[11px] text-amber-400 font-extrabold flex items-center gap-1.5" title="Configure your tables inside the SQL tab.">
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                      No Tables
+                    </span>
+                  ) : (
+                    <span className="text-[11px] text-slate-400 font-extrabold flex items-center gap-1.5" title="Operating in Local JSON Mode.">
+                      <span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>
+                      Local Only
+                    </span>
+                  )
+                ) : (
+                  <button
+                    onClick={checkSupabaseConnectivity}
+                    className="text-[11px] text-indigo-400 hover:text-indigo-300 hover:underline font-extrabold cursor-pointer"
+                  >
+                    Verify
+                  </button>
+                )}
+              </div>
             </div>
+
+            {/* Manual Generation Form */}
+            <form onSubmit={handleGenerateTodayProduct} className="space-y-4 pt-2 border-t border-slate-850/60">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">Product Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={manualProductName}
+                    onChange={(e) => setManualProductName(e.target.value)}
+                    placeholder="e.g. Sony WH-1000XM5 Wireless Headphones"
+                    disabled={generationState !== "idle"}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">Affiliate Link</label>
+                  <input
+                    type="url"
+                    required
+                    value={manualAffiliateLink}
+                    onChange={(e) => setManualAffiliateLink(e.target.value)}
+                    placeholder="e.g. https://amazon.com/dp/B09XXXX"
+                    disabled={generationState !== "idle"}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-sm text-white placeholder-slate-600 outline-none transition-all disabled:opacity-50"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-bold text-slate-300 uppercase tracking-wider">Category</label>
+                  <select
+                    value={manualCategory}
+                    onChange={(e) => setManualCategory(e.target.value)}
+                    disabled={generationState !== "idle"}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500/50 rounded-xl px-4 py-3 text-sm text-white outline-none transition-all disabled:opacity-50"
+                  >
+                    <option value="auto">✨ Auto-Detect Category with AI</option>
+                    <option value="earbuds">Wireless Earbuds (earbuds)</option>
+                    <option value="gaming-mice">Gaming Mice (gaming-mice)</option>
+                    <option value="coffee-makers">Coffee Makers (coffee-makers)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Action and Progress Area */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 pt-3">
+                <button
+                  type="submit"
+                  disabled={generationState !== "idle"}
+                  className={`px-6 py-3.5 rounded-2xl text-sm font-black flex items-center justify-center gap-2.5 transition-all shadow-lg select-none ${
+                    generationState === "idle"
+                      ? "bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-90 active:scale-[0.98] text-white shadow-indigo-500/10 cursor-pointer"
+                      : "bg-slate-800 text-slate-500 border border-slate-750 cursor-not-allowed"
+                  }`}
+                >
+                  {generationState === "idle" ? (
+                    <>
+                      <Sparkles className="w-4 h-4 text-white animate-pulse" />
+                      <span>Generate and Publish Immediately</span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
+                      <span>Generating Review...</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Progress Tracker UI */}
+                {generationState !== "idle" && (
+                  <div className="flex items-center gap-2 text-xs font-semibold select-none overflow-x-auto py-1">
+                    <span className={generationState === "researching" ? "text-indigo-400 font-extrabold animate-pulse bg-indigo-950/40 px-2.5 py-1 rounded-lg border border-indigo-900/30" : "text-slate-500"}>
+                      Researching...
+                    </span>
+                    <span className="text-slate-700">→</span>
+                    <span className={generationState === "writing" ? "text-purple-400 font-extrabold animate-pulse bg-purple-950/40 px-2.5 py-1 rounded-lg border border-purple-900/30" : "text-slate-500"}>
+                      Writing...
+                    </span>
+                    <span className="text-slate-700">→</span>
+                    <span className={generationState === "publishing" ? "text-pink-400 font-extrabold animate-pulse bg-pink-950/40 px-2.5 py-1 rounded-lg border border-pink-900/30" : "text-slate-500"}>
+                      Publishing...
+                    </span>
+                    <span className="text-slate-700">→</span>
+                    <span className={generationState === "completed" ? "text-emerald-400 font-extrabold bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-900/30" : "text-slate-500"}>
+                      Completed.
+                    </span>
+                  </div>
+                )}
+              </div>
+            </form>
 
             {/* Generated Output Showcase Card */}
             {generatedOutput && (

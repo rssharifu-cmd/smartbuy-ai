@@ -991,89 +991,18 @@ app.get("/api/admin/supabase-status", async (req, res) => {
   }
 });
 
-// --- ✨ GENERATE TODAY'S PRODUCT API ENDPOINT ---
-const PRODUCT_CANDIDATES = [
-  {
-    title: "Sony WF-1000XM5 Wireless Earbuds",
-    slug: "sony-wf-1000xm5-review",
-    category: "earbuds",
-    price: "$299.99",
-    asin: "B0C3M786QR",
-    image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80"
-  },
-  {
-    title: "Apple AirPods Pro 2 Wireless Earbuds",
-    slug: "apple-airpods-pro-2-review",
-    category: "earbuds",
-    price: "$249.00",
-    asin: "B0CHWRXNCT",
-    image: "https://images.unsplash.com/photo-1588449668338-d151688c3482?w=600&auto=format&fit=crop&q=80"
-  },
-  {
-    title: "Bose QuietComfort Ultra Earbuds",
-    slug: "bose-quietcomfort-ultra-review",
-    category: "earbuds",
-    price: "$299.00",
-    asin: "B0CGM4FFK9",
-    image: "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80"
-  },
-  {
-    title: "Sennheiser Momentum True Wireless 4",
-    slug: "sennheiser-momentum-true-wireless-4-review",
-    category: "earbuds",
-    price: "$299.95",
-    asin: "B0CTD3V67C",
-    image: "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80"
-  },
-  {
-    title: "Razer Viper V3 Pro Wireless Gaming Mouse",
-    slug: "razer-viper-v3-pro-review",
-    category: "gaming-mice",
-    price: "$159.99",
-    asin: "B0CX9B47H8",
-    image: "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80"
-  },
-  {
-    title: "Logitech G Pro X Superlight 2 Gaming Mouse",
-    slug: "logitech-g-pro-x-superlight-2-review",
-    category: "gaming-mice",
-    price: "$149.00",
-    asin: "B0C7GBCWZ9",
-    image: "https://images.unsplash.com/photo-1527813713060-7a9404279759?w=600&auto=format&fit=crop&q=80"
-  },
-  {
-    title: "SteelSeries Aerox 3 Wireless Gaming Mouse",
-    slug: "steelseries-aerox-3-review",
-    category: "gaming-mice",
-    price: "$99.99",
-    asin: "B09D8GTM7H",
-    image: "https://images.unsplash.com/photo-1625600243103-1dc6824c6c8a?w=600&auto=format&fit=crop&q=80"
-  },
-  {
-    title: "Breville Barista Express Espresso Machine",
-    slug: "breville-barista-express-review",
-    category: "coffee-makers",
-    price: "$699.95",
-    asin: "B00CH9QWOU",
-    image: "https://images.unsplash.com/photo-1518057111178-44a106bad636?w=600&auto=format&fit=crop&q=80"
-  },
-  {
-    title: "Nespresso Vertuo Next Coffee Machine",
-    slug: "nespresso-vertuo-next-review",
-    category: "coffee-makers",
-    price: "$169.00",
-    asin: "B0892BFQWF",
-    image: "https://images.unsplash.com/photo-1517256064527-09c53b2d0bc6?w=600&auto=format&fit=crop&q=80"
-  },
-  {
-    title: "Keurig K-Elite Coffee Maker",
-    slug: "keurig-k-elite-review",
-    category: "coffee-makers",
-    price: "$189.99",
-    asin: "B07898Y1L2",
-    image: "https://images.unsplash.com/photo-1517256064527-09c53b2d0bc6?w=600&auto=format&fit=crop&q=80"
-  }
-];
+// --- ✨ MANUAL PRODUCT GENERATION API ENDPOINT ---
+function slugify(text: string): string {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, "-")           // Replace spaces with -
+    .replace(/[^\w\-]+/g, "")       // Remove all non-word chars
+    .replace(/\-\-+/g, "-")         // Replace multiple - with single -
+    .replace(/^-+/, "")             // Trim - from start
+    .replace(/-+$/, "");            // Trim - from end
+}
 
 app.post("/api/admin/generate-today-product", async (req, res) => {
   // Authorization check
@@ -1083,76 +1012,98 @@ app.post("/api/admin/generate-today-product", async (req, res) => {
     return res.status(401).json({ error: "Unauthorized access token." });
   }
 
+  const { productName, affiliateLink, category } = req.body;
+
+  if (!productName || !productName.trim()) {
+    return res.status(400).json({ error: "Product name is required." });
+  }
+  if (!affiliateLink || !affiliateLink.trim()) {
+    return res.status(400).json({ error: "Affiliate link is required." });
+  }
+
   try {
-    const existingSlugs = db.products.map(p => p.slug);
-    let selectedProduct = PRODUCT_CANDIDATES.find(c => !existingSlugs.includes(c.slug));
+    const rawSlug = slugify(productName);
+    const finalSlug = rawSlug.endsWith("-review") ? rawSlug : `${rawSlug}-review`;
 
-    if (!selectedProduct) {
-      console.log("Predefined product candidates exhausted. Generating new unique product dynamically using Gemini.");
-      const ai = getGemini();
-      const categoriesList = ["earbuds", "gaming-mice", "coffee-makers"];
-      const randomCategory = categoriesList[Math.floor(Math.random() * categoriesList.length)];
+    // Prevent duplicate products
+    const isDuplicate = db.products.some(
+      (p) => p.slug === finalSlug || p.title.toLowerCase().trim() === productName.toLowerCase().trim()
+    );
+    if (isDuplicate) {
+      return res.status(400).json({ error: "A product review with this name or URL slug already exists." });
+    }
 
-      const dynamicPrompt = `Suggest one highly rated, popular, real commercial consumer tech or kitchen product under category slug: "${randomCategory}".
-It MUST NOT be any of these existing slugs: ${JSON.stringify(existingSlugs)}.
-Provide a unique lowercase slug with dashes, a clean title, estimated retail price, and a standard Amazon ASIN if available.
-You MUST respond with a single, valid JSON object matching this structure:
-{
-  "title": "Clean Product Title",
-  "slug": "unique-product-slug",
-  "category": "${randomCategory}",
-  "price": "$129.99",
-  "asin": "B0XXXXXX",
-  "image": "An Unsplash image URL suitable for this product"
-}`;
-
-      const dynamicResponse = await ai.models.generateContent({
-        model: "gemini-3.5-flash",
-        contents: dynamicPrompt,
-        config: {
-          responseMimeType: "application/json",
+    let finalCategory = category;
+    
+    // Auto-detect category with Gemini if selected as auto
+    if (!finalCategory || finalCategory === "auto") {
+      console.log(`Auto-detecting category for product: ${productName}`);
+      try {
+        const ai = getGemini();
+        const catResponse = await ai.models.generateContent({
+          model: "gemini-3.5-flash",
+          contents: `Given the product name: "${productName}", categorize it into exactly one of these category slugs: 'earbuds', 'gaming-mice', or 'coffee-makers'. Respond ONLY with the category slug in lowercase without quotes or punctuation.`,
+        });
+        const detected = catResponse.text?.trim().toLowerCase().replace(/['"`]/g, "");
+        if (detected && ["earbuds", "gaming-mice", "coffee-makers"].includes(detected)) {
+          finalCategory = detected;
+        } else {
+          finalCategory = "earbuds"; // fallback
         }
-      });
-
-      const dynamicData = JSON.parse(dynamicResponse.text || "{}");
-      if (dynamicData.title && dynamicData.slug && dynamicData.category) {
-        selectedProduct = {
-          title: dynamicData.title,
-          slug: dynamicData.slug,
-          category: dynamicData.category,
-          price: dynamicData.price || "$149.99",
-          asin: dynamicData.asin || "B09GKTB3V4",
-          image: dynamicData.image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600"
-        };
-      } else {
-        throw new Error("Could not dynamically select a unique product candidate.");
+      } catch (err) {
+        console.error("Failed to auto-detect category:", err);
+        finalCategory = "earbuds";
       }
     }
 
-    console.log(`Starting deep research for selected product: ${selectedProduct.title}`);
+    console.log(`Starting deep research for manually submitted product: ${productName} (Category: ${finalCategory})`);
     const ai = getGemini();
 
-    const systemPrompt = `You are an expert product reviewer, tester, and SEO specialist at "AffiMind".
-Your mission is to conduct deep research and write an unbiased, highly-optimized, authoritative product review and buying guide for: "${selectedProduct.title}" (category: "${selectedProduct.category}").
+    // Dynamically retrieve existing articles for natural internal links (SEO)
+    const existingArticlesForLinking = db.articles.slice(0, 4).map(a => ({
+      title: a.title,
+      slug: a.slug
+    }));
+
+    // Choose Unsplash image based on category
+    let defaultImageUrl = "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80";
+    if (finalCategory === "earbuds") {
+      defaultImageUrl = "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80";
+    } else if (finalCategory === "gaming-mice") {
+      defaultImageUrl = "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80";
+    } else if (finalCategory === "coffee-makers") {
+      defaultImageUrl = "https://images.unsplash.com/photo-1518057111178-44a106bad636?w=600&auto=format&fit=crop&q=80";
+    }
+
+    const systemPrompt = `You are an expert product reviewer, SEO copywriter, and affiliate marketer at "AffiMind".
+Your mission is to write an unbiased, highly-optimized, authoritative product review, comprehensive buying guide, and complete structured data for: "${productName}" (category: "${finalCategory}").
 
 You MUST generate the following structured properties:
 1. "seoTitle": Catchy, click-worthy, SEO title (max 65 chars) ending with "| AffiMind".
 2. "metaDescription": High-CTR search meta description (max 160 chars).
-3. "slug": Must be "${selectedProduct.slug}" (do not change it).
-4. "content": Comprehensive, expert-level, markdown-formatted product review. It should feel premium and highly citable, including a detailed analysis of key features, performance, build quality, and a dedicated "Buying Guide / Ultimate Verdict" section.
-5. "buyingAdvice": A concise summary paragraph (approx 50-80 words) advising who this product is best suited for and who should avoid it.
-6. "pros": Array of exactly 4 clear, compelling pros.
-7. "cons": Array of exactly 2 precise cons.
-8. "rating": Numerical rating from 1.0 to 5.0 based on real community feedback (e.g., 4.7).
-9. "specs": Key-value dictionary of specs (e.g. "Driver Size": "11mm", "Battery": "30 Hours").
+3. "content": Comprehensive, expert-level, markdown-formatted product review. It should feel premium and highly citable. It MUST include a detailed analysis of key features, performance, build quality, and a dedicated "Buying Guide & Ultimate Verdict" section.
+   - For SEO (internal links), you MUST naturally insert 1-2 standard Markdown links inside the review body pointing to other relevant pages on our site.
+   - You can link to these existing reviews if applicable:
+     ${existingArticlesForLinking.map(a => `* "${a.title}": /articles/${a.slug}`).join("\n")}
+   - Or you can link to these category index pages:
+     * Wireless Earbuds category: /categories/earbuds
+     * Gaming Mice category: /categories/gaming-mice
+     * Coffee Makers category: /categories/coffee-makers
+   - Example link: "...for alternative options, you can browse our [wireless earbuds category](/categories/earbuds) to find..."
+4. "buyingAdvice": A concise summary paragraph (approx 50-80 words) advising who this product is best suited for and who should avoid it.
+5. "pros": Array of exactly 4 clear, compelling pros.
+6. "cons": Array of exactly 2 precise cons.
+7. "rating": Numerical rating from 1.0 to 5.0 based on real community feedback (e.g., 4.7).
+8. "estimatedPrice": Estimated retail price string (e.g. "$129.99").
+9. "specs": Key-value dictionary of specs (at least 4 key-value pairs, e.g. "Battery": "30 Hours", "Driver": "11mm").
 10. "faq": Exactly 2 highly relevant FAQ question-and-answer objects.
-11. "schema": Valid Schema.org JSON-LD object for a Product Review. Make sure it specifies "@context": "https://schema.org", "@type": "Product", "name": "${selectedProduct.title}", "offers": { "@type": "Offer", "price": "${selectedProduct.price.replace('$', '')}", "priceCurrency": "USD", "url": "AFFILIATE_LINK_PLACEHOLDER" }, and a "review" block.
+11. "schema": Valid Schema.org JSON-LD object for a Product Review. Make sure it specifies "@context": "https://schema.org", "@type": "Product", "name": "${productName}", "offers": { "@type": "Offer", "price": "PRICE_PLACEHOLDER", "priceCurrency": "USD", "url": "AFFILIATE_LINK_PLACEHOLDER" }, and a "review" block.
 
 Provide pristine, fully valid JSON data.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
-      contents: `Perform expert product review research for "${selectedProduct.title}"`,
+      contents: `Perform expert product review research and complete guide generation for "${productName}"`,
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
@@ -1172,6 +1123,7 @@ Provide pristine, fully valid JSON data.`;
               items: { type: Type.STRING }
             },
             rating: { type: Type.NUMBER },
+            estimatedPrice: { type: Type.STRING },
             specs: { type: Type.OBJECT },
             faq: {
               type: Type.ARRAY,
@@ -1186,24 +1138,24 @@ Provide pristine, fully valid JSON data.`;
             },
             schema: { type: Type.OBJECT }
           },
-          required: ["seoTitle", "metaDescription", "content", "buyingAdvice", "pros", "cons", "rating", "specs", "faq", "schema"]
+          required: ["seoTitle", "metaDescription", "content", "buyingAdvice", "pros", "cons", "rating", "estimatedPrice", "specs", "faq", "schema"]
         }
       }
     });
 
     const parsedData = JSON.parse(response.text || "{}");
-    const affiliateLink = `https://amazon.com/dp/${selectedProduct.asin || "B09GKTB3V4"}?tag=affimind-20`;
+    const generatedPrice = parsedData.estimatedPrice || "$149.99";
 
     // Setup final product & article schemas
     const newProduct = {
       id: `p_${Date.now()}`,
-      title: selectedProduct.title,
-      slug: selectedProduct.slug,
-      category: selectedProduct.category,
+      title: productName,
+      slug: finalSlug,
+      category: finalCategory,
       content: parsedData.content,
-      image: selectedProduct.image,
+      image: defaultImageUrl,
       affiliateLink: affiliateLink,
-      price: selectedProduct.price,
+      price: generatedPrice,
       rating: Number(parsedData.rating) || 4.5,
       pros: parsedData.pros || [],
       cons: parsedData.cons || [],
@@ -1211,7 +1163,7 @@ Provide pristine, fully valid JSON data.`;
       faq: parsedData.faq || [],
       buyingAdvice: parsedData.buyingAdvice || "",
       alternatives: db.products
-        .filter(p => p.category === selectedProduct?.category)
+        .filter(p => p.category === finalCategory)
         .slice(0, 2)
         .map(p => p.slug),
       createdAt: new Date().toISOString(),
@@ -1221,6 +1173,7 @@ Provide pristine, fully valid JSON data.`;
     let schemaObj = parsedData.schema || {};
     let schemaStr = JSON.stringify(schemaObj);
     schemaStr = schemaStr.replace(/AFFILIATE_LINK_PLACEHOLDER/g, affiliateLink);
+    schemaStr = schemaStr.replace(/PRICE_PLACEHOLDER/g, generatedPrice.replace("$", ""));
     try {
       schemaObj = JSON.parse(schemaStr);
     } catch {
@@ -1229,15 +1182,15 @@ Provide pristine, fully valid JSON data.`;
 
     const newArticle = {
       id: `a_${Date.now()}`,
-      title: parsedData.seoTitle || `${selectedProduct.title} Review`,
-      slug: selectedProduct.slug,
-      category: selectedProduct.category,
+      title: parsedData.seoTitle || `${productName} Review`,
+      slug: finalSlug,
+      category: finalCategory,
       content: parsedData.content,
-      metaTitle: parsedData.seoTitle || `${selectedProduct.title} Review`,
+      metaTitle: parsedData.seoTitle || `${productName} Review`,
       metaDescription: parsedData.metaDescription || "",
       faq: parsedData.faq || [],
       schema: schemaObj,
-      image: selectedProduct.image,
+      image: defaultImageUrl,
       affiliateLink: affiliateLink,
       createdAt: new Date().toISOString(),
       status: "published" as const
@@ -1251,7 +1204,7 @@ Provide pristine, fully valid JSON data.`;
     // Save to Supabase if credentials are set
     const supabaseSaved = await saveToSupabase(newProduct, newArticle);
 
-    console.log(`Product generation and immediate publishing complete for ${selectedProduct.title}`);
+    console.log(`Product generation and immediate publishing complete for ${productName}`);
     res.status(201).json({
       success: true,
       supabaseSaved,
@@ -1260,8 +1213,8 @@ Provide pristine, fully valid JSON data.`;
     });
 
   } catch (err: any) {
-    console.error("Generate Today's Product API Error:", err);
-    res.status(500).json({ error: err.message || "Failed to generate today's product." });
+    console.error("Generate Product API Error:", err);
+    res.status(500).json({ error: err.message || "Failed to generate product review." });
   }
 });
 
