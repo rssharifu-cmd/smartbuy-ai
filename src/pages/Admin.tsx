@@ -26,7 +26,17 @@ export const Admin: React.FC = () => {
 
   // Today's Product Generator State
   const [generationState, setGenerationState] = useState<"idle" | "researching" | "writing" | "publishing" | "completed">("idle");
-  const [generatedOutput, setGeneratedOutput] = useState<{ product: Product; article: Article; supabaseSaved: boolean } | null>(null);
+  const [generatedOutput, setGeneratedOutput] = useState<{
+    product: Product;
+    article: Article;
+    supabaseSaved: boolean;
+    brief?: {
+      deepResearch: string;
+      targetAudience: string;
+      buyingIntent: string;
+      contentOutline: string[];
+    };
+  } | null>(null);
 
   // Manual Product Generator Form State
   const [manualProductName, setManualProductName] = useState("");
@@ -859,6 +869,36 @@ export const Admin: React.FC = () => {
                     <span className="text-sm text-indigo-300 font-mono block">/articles/{generatedOutput.article.slug}</span>
                   </div>
                 </div>
+
+                {/* Strategic Research & Planning Report Showcase */}
+                {generatedOutput.brief && (
+                  <div className="pt-4 border-t border-slate-900 space-y-3 text-left">
+                    <span className="text-[11px] font-bold text-indigo-400 uppercase tracking-wider block">📊 Pre-Generation AI Strategic Research & Planning Report</span>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                      <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-850/60 space-y-1">
+                        <span className="text-[9px] font-black text-indigo-300 uppercase block tracking-wider">1. Deep Product Research Notes</span>
+                        <p className="text-slate-350 leading-relaxed whitespace-pre-wrap">{generatedOutput.brief.deepResearch}</p>
+                      </div>
+                      <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-850/60 space-y-1">
+                        <span className="text-[9px] font-black text-purple-300 uppercase block tracking-wider">2. Target Audience Profile</span>
+                        <p className="text-slate-350 leading-relaxed whitespace-pre-wrap">{generatedOutput.brief.targetAudience}</p>
+                      </div>
+                      <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-850/60 space-y-1">
+                        <span className="text-[9px] font-black text-pink-300 uppercase block tracking-wider">3. Commercial Buying Intent Analysis</span>
+                        <p className="text-slate-350 leading-relaxed whitespace-pre-wrap">{generatedOutput.brief.buyingIntent}</p>
+                      </div>
+                      <div className="bg-slate-900/40 p-3.5 rounded-xl border border-slate-850/60 space-y-1">
+                        <span className="text-[9px] font-black text-emerald-300 uppercase block tracking-wider">4. Editorial Heading Outline Roadmap</span>
+                        <ul className="list-disc list-inside space-y-1 text-slate-350">
+                          {generatedOutput.brief.contentOutline.map((item, idx) => (
+                            <li key={idx} className="leading-relaxed">{item}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="pt-2.5 border-t border-slate-900 flex flex-wrap items-center justify-between gap-3 text-xs">
                   <a
                     href={`/articles/${generatedOutput.article.slug}`}

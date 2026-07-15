@@ -1056,8 +1056,45 @@ app.post("/api/admin/generate-today-product", async (req, res) => {
       }
     }
 
-    console.log(`Starting deep research for manually submitted product: ${productName} (Category: ${finalCategory})`);
+    console.log(`Starting Step 1: Deep Research, Audience Profile, Buying Intent, and Outline for: ${productName} (Category: ${finalCategory})`);
     const ai = getGemini();
+
+    const planningPrompt = `You are an expert product analyst, consumer psychologist, and professional content strategist at "AffiMind".
+Your task is to conduct deep research, understand the target audience, isolate the commercial buying intent, and map a rich content outline for a high-converting, authoritative affiliate review and buying guide for:
+Product Name: "${productName}"
+Category: "${finalCategory}"
+
+Please generate a comprehensive planning brief:
+1. "deepResearch": Deep research notes detailing design, performance, specifications, community consensus, strengths, weaknesses, and key rival comparisons.
+2. "targetAudience": A thorough description of the target buyer personas. Explain their demographics, lifestyle, daily needs, and the exact pain points this product solves.
+3. "buyingIntent": Break down the user's purchase motivation. Are they upgrading, buying a budget alternative, or seeking a luxury item? What is the main value-add or click-trigger for their conversion?
+4. "contentOutline": A detailed hierarchical layout of headings, subheadings, and specific topics to cover in the review to maximize user retention and affiliate trust.`;
+
+    const planningResponse = await ai.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: planningPrompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            deepResearch: { type: Type.STRING },
+            targetAudience: { type: Type.STRING },
+            buyingIntent: { type: Type.STRING },
+            contentOutline: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            }
+          },
+          required: ["deepResearch", "targetAudience", "buyingIntent", "contentOutline"]
+        }
+      }
+    });
+
+    const planningData = JSON.parse(planningResponse.text || "{}");
+    console.log("Step 1: Planning and Research Completed successfully.");
+
+    console.log(`Starting Step 2: Synthesis and writing of final review based on the strategic research brief...`);
 
     // Dynamically retrieve existing articles for natural internal links (SEO)
     const existingArticlesForLinking = db.articles.slice(0, 4).map(a => ({
@@ -1077,6 +1114,26 @@ app.post("/api/admin/generate-today-product", async (req, res) => {
 
     const systemPrompt = `You are an expert product reviewer, SEO copywriter, and affiliate marketer at "AffiMind".
 Your mission is to write an unbiased, highly-optimized, authoritative product review, comprehensive buying guide, and complete structured data for: "${productName}" (category: "${finalCategory}").
+
+CRITICAL REQUIREMENT: We have conducted a pre-generation research phase. You MUST strictly base your content on the following pre-researched Strategic Brief:
+
+==================================================
+📊 STRATEGIC RESEARCH BRIEF (DEEP FOUNDATIONS)
+==================================================
+1. DEEP PRODUCT RESEARCH & ANALYSIS:
+${planningData.deepResearch}
+
+2. TARGET AUDIENCE INSIGHTS:
+${planningData.targetAudience}
+
+3. USER BUYING INTENT & motivation:
+${planningData.buyingIntent}
+
+4. EDITORIAL CONTENT OUTLINE:
+${(planningData.contentOutline || []).map((line: string) => `- ${line}`).join("\n")}
+==================================================
+
+Use this brief to write a masterclass product review. Ensure the tone is highly helpful, objective, professional yet engaging, and structured logically as outlined.
 
 You MUST generate the following structured properties:
 1. "seoTitle": Catchy, click-worthy, SEO title (max 65 chars) ending with "| AffiMind".
@@ -1103,7 +1160,7 @@ Provide pristine, fully valid JSON data.`;
 
     const response = await ai.models.generateContent({
       model: "gemini-3.5-flash",
-      contents: `Perform expert product review research and complete guide generation for "${productName}"`,
+      contents: `Generate complete buying guide review and rich data for "${productName}" utilizing our pre-researched Strategic Brief.`,
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
@@ -1167,7 +1224,13 @@ Provide pristine, fully valid JSON data.`;
         .slice(0, 2)
         .map(p => p.slug),
       createdAt: new Date().toISOString(),
-      featured: true
+      featured: true,
+      researchBrief: {
+        deepResearch: planningData.deepResearch,
+        targetAudience: planningData.targetAudience,
+        buyingIntent: planningData.buyingIntent,
+        contentOutline: planningData.contentOutline
+      }
     };
 
     let schemaObj = parsedData.schema || {};
@@ -1193,7 +1256,13 @@ Provide pristine, fully valid JSON data.`;
       image: defaultImageUrl,
       affiliateLink: affiliateLink,
       createdAt: new Date().toISOString(),
-      status: "published" as const
+      status: "published" as const,
+      researchBrief: {
+        deepResearch: planningData.deepResearch,
+        targetAudience: planningData.targetAudience,
+        buyingIntent: planningData.buyingIntent,
+        contentOutline: planningData.contentOutline
+      }
     };
 
     // Save locally
@@ -1209,7 +1278,8 @@ Provide pristine, fully valid JSON data.`;
       success: true,
       supabaseSaved,
       product: newProduct,
-      article: newArticle
+      article: newArticle,
+      brief: planningData
     });
 
   } catch (err: any) {
