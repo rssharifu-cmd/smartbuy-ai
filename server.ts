@@ -319,6 +319,92 @@ function getGemini(): GoogleGenAI {
   return aiClient;
 }
 
+/**
+ * Safely parses and cleans up Gemini error messages for user presentation.
+ */
+function cleanErrorMessage(err: any): string {
+  if (!err) return "An unknown error occurred.";
+  const msg = err.message || String(err);
+  try {
+    const trimmed = msg.trim();
+    if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.error && parsed.error.message) {
+        return parsed.error.message;
+      }
+      if (parsed.message) {
+        return parsed.message;
+      }
+    }
+  } catch {
+    // Fall through
+  }
+
+  if (msg.includes("503") || msg.toLowerCase().includes("unavailable") || msg.toLowerCase().includes("demand")) {
+    return "The AI generation service is currently experiencing extremely high demand. Please try again in a few seconds.";
+  }
+  if (msg.includes("429") || msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("quota")) {
+    return "Rate limit or quota exceeded. Please wait a moment before trying again.";
+  }
+
+  return msg;
+}
+
+/**
+ * Runs a Gemini API generation with up to 3 automatic retries and automatic fallback to gemini-3.1-flash-lite
+ */
+async function generateContentWithRetryAndFallback(params: { contents: any; config?: any; }) {
+  const ai = getGemini();
+  let attempt = 0;
+  const maxAttempts = 3;
+  let delay = 1000;
+
+  while (attempt < maxAttempts) {
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: params.contents,
+        config: params.config,
+      });
+      return response;
+    } catch (err: any) {
+      attempt++;
+      console.warn(`Gemini call failed (attempt ${attempt}/${maxAttempts}) using gemini-3.5-flash:`, err.message || err);
+      
+      const errMsg = String(err.message || err).toLowerCase();
+      const isTemporaryError = 
+        errMsg.includes("demand") || 
+        errMsg.includes("unavailable") || 
+        errMsg.includes("503") || 
+        errMsg.includes("limit") || 
+        errMsg.includes("429") ||
+        errMsg.includes("timeout") ||
+        errMsg.includes("fetch failed");
+
+      if (attempt >= maxAttempts) {
+        if (isTemporaryError) {
+          console.warn("Retries exhausted for gemini-3.5-flash. Falling back to stable gemini-3.1-flash-lite...");
+          try {
+            const response = await ai.models.generateContent({
+              model: "gemini-3.1-flash-lite",
+              contents: params.contents,
+              config: params.config,
+            });
+            return response;
+          } catch (fallbackErr: any) {
+            console.error("Fallback model gemini-3.1-flash-lite also failed:", fallbackErr.message || fallbackErr);
+            throw fallbackErr;
+          }
+        }
+        throw err;
+      }
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+      delay *= 1.5; // Backoff
+    }
+  }
+}
+
 // --- API ENDPOINTS ---
 
 // Admin Authentication Middleware
@@ -632,8 +718,7 @@ Your response MUST be a single, valid JSON object that exactly satisfies this st
 
 Ensure the output can be parsed easily. Select ONLY relevant product slugs that actually exist in our catalog list above. Do NOT invent new slugs.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await generateContentWithRetryAndFallback({
       contents: `Search Query: "${query}"`,
       config: {
         systemInstruction: systemPrompt,
@@ -791,8 +876,7 @@ You MUST respond with a single, valid, parseable JSON object matching this struc
 }
 Provide clean JSON without trailing commas.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await generateContentWithRetryAndFallback({
       contents: `Generate a detailed affiliate review guide for keyword: "${keyword}"`,
       config: {
         systemInstruction: systemPrompt,
@@ -1042,14 +1126,7 @@ function slugify(text: string): string {
     .replace(/-+$/, "");            // Trim - from end
 }
 
-app.post("/api/admin/generate-today-product", async (req, res) => {
-  // Authorization check
-  const authHeader = req.headers.authorization;
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
-  if (authHeader && authHeader !== `Bearer ${adminPassword}`) {
-    return res.status(401).json({ error: "Unauthorized access token." });
-  }
-
+app.post("/api/admin/generate-today-product", requireAdminAuth, async (req, res) => {
   const { productName, affiliateLink, category } = req.body;
 
   if (!productName || !productName.trim()) {
@@ -1077,9 +1154,7 @@ app.post("/api/admin/generate-today-product", async (req, res) => {
     if (!finalCategory || finalCategory === "auto") {
       console.log(`Auto-detecting category for product: ${productName}`);
       try {
-        const ai = getGemini();
-        const catResponse = await ai.models.generateContent({
-          model: "gemini-3.5-flash",
+        const catResponse = await generateContentWithRetryAndFallback({
           contents: `Given the product name: "${productName}", categorize it into exactly one of these category slugs: 'earbuds', 'gaming-mice', or 'coffee-makers'. Respond ONLY with the category slug in lowercase without quotes or punctuation.`,
         });
         const detected = catResponse.text?.trim().toLowerCase().replace(/['"`]/g, "");
@@ -1108,8 +1183,7 @@ Please generate a comprehensive planning brief:
 3. "buyingIntent": Break down the user's purchase motivation. Are they upgrading, buying a budget alternative, or seeking a luxury item? What is the main value-add or click-trigger for their conversion?
 4. "contentOutline": A detailed hierarchical layout of headings, subheadings, and specific topics to cover in the review to maximize user retention and affiliate trust.`;
 
-    const planningResponse = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const planningResponse = await generateContentWithRetryAndFallback({
       contents: planningPrompt,
       config: {
         responseMimeType: "application/json",
@@ -1196,8 +1270,7 @@ You MUST generate the following structured properties:
 
 Provide pristine, fully valid JSON data.`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
+    const response = await generateContentWithRetryAndFallback({
       contents: `Generate complete buying guide review and rich data for "${productName}" utilizing our pre-researched Strategic Brief.`,
       config: {
         systemInstruction: systemPrompt,
@@ -1322,7 +1395,7 @@ Provide pristine, fully valid JSON data.`;
 
   } catch (err: any) {
     console.error("Generate Product API Error:", err);
-    res.status(500).json({ error: err.message || "Failed to generate product review." });
+    res.status(500).json({ error: cleanErrorMessage(err) });
   }
 });
 
