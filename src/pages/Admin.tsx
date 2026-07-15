@@ -30,6 +30,7 @@ export const Admin: React.FC = () => {
 
   // Today's Product Generator State
   const [generationState, setGenerationState] = useState<"idle" | "researching" | "writing" | "publishing" | "completed">("idle");
+  const [showSuccessText, setShowSuccessText] = useState(false);
   const [generatedOutput, setGeneratedOutput] = useState<{
     product: Product;
     article: Article;
@@ -557,6 +558,7 @@ export const Admin: React.FC = () => {
       return;
     }
 
+    setShowSuccessText(false);
     setGenerationState("researching");
     setGeneratedOutput(null);
 
@@ -596,9 +598,10 @@ export const Admin: React.FC = () => {
 
       if (res.ok) {
         const data = await res.json();
-        setGenerationState("completed");
+        setGenerationState("idle");
         setGeneratedOutput(data);
-        showStatus("success", `✨ Product review and buying guide for "${manualProductName}" generated and published successfully!`);
+        setShowSuccessText(true);
+        showStatus("success", "Article generated and published successfully.");
 
         // Clear input form fields
         setManualProductName("");
@@ -983,6 +986,13 @@ export const Admin: React.FC = () => {
                     <span className={generationState === "completed" ? "text-emerald-400 font-extrabold bg-emerald-950/40 px-2.5 py-1 rounded-lg border border-emerald-900/30" : "text-slate-500"}>
                       Completed.
                     </span>
+                  </div>
+                )}
+
+                {showSuccessText && (
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-400 bg-emerald-950/40 px-4 py-2 rounded-xl border border-emerald-900/30">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <span>Article generated and published successfully.</span>
                   </div>
                 )}
               </div>

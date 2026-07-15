@@ -22,7 +22,7 @@ export const Home: React.FC = () => {
     async function fetchData() {
       try {
         const [prodRes, artRes, catRes] = await Promise.all([
-          fetch("/api/products?featured=true"),
+          fetch("/api/products"),
           fetch("/api/articles"),
           fetch("/api/categories")
         ]);
