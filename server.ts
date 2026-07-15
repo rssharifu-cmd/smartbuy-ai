@@ -1169,44 +1169,7 @@ app.post("/api/admin/generate-today-product", requireAdminAuth, async (req, res)
       }
     }
 
-    console.log(`Starting Step 1: Deep Research, Audience Profile, Buying Intent, and Outline for: ${productName} (Category: ${finalCategory})`);
-    const ai = getGemini();
-
-    const planningPrompt = `You are an expert product analyst, consumer psychologist, and professional content strategist at "AffiMind".
-Your task is to conduct deep research, understand the target audience, isolate the commercial buying intent, and map a rich content outline for a high-converting, authoritative affiliate review and buying guide for:
-Product Name: "${productName}"
-Category: "${finalCategory}"
-
-Please generate a comprehensive planning brief:
-1. "deepResearch": Deep research notes detailing design, performance, specifications, community consensus, strengths, weaknesses, and key rival comparisons.
-2. "targetAudience": A thorough description of the target buyer personas. Explain their demographics, lifestyle, daily needs, and the exact pain points this product solves.
-3. "buyingIntent": Break down the user's purchase motivation. Are they upgrading, buying a budget alternative, or seeking a luxury item? What is the main value-add or click-trigger for their conversion?
-4. "contentOutline": A detailed hierarchical layout of headings, subheadings, and specific topics to cover in the review to maximize user retention and affiliate trust.`;
-
-    const planningResponse = await generateContentWithRetryAndFallback({
-      contents: planningPrompt,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            deepResearch: { type: Type.STRING },
-            targetAudience: { type: Type.STRING },
-            buyingIntent: { type: Type.STRING },
-            contentOutline: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            }
-          },
-          required: ["deepResearch", "targetAudience", "buyingIntent", "contentOutline"]
-        }
-      }
-    });
-
-    const planningData = JSON.parse(planningResponse.text || "{}");
-    console.log("Step 1: Planning and Research Completed successfully.");
-
-    console.log(`Starting Step 2: Synthesis and writing of final review based on the strategic research brief...`);
+    console.log(`Starting combined Strategic Research and Editorial Synthesis for: ${productName} (Category: ${finalCategory})`);
 
     // Dynamically retrieve existing articles for natural internal links (SEO)
     const existingArticlesForLinking = db.articles.slice(0, 4).map(a => ({
@@ -1224,60 +1187,55 @@ Please generate a comprehensive planning brief:
       defaultImageUrl = "https://images.unsplash.com/photo-1518057111178-44a106bad636?w=600&auto=format&fit=crop&q=80";
     }
 
-    const systemPrompt = `You are an expert product reviewer, SEO copywriter, and affiliate marketer at "AffiMind".
-Your mission is to write an unbiased, highly-optimized, authoritative product review, comprehensive buying guide, and complete structured data for: "${productName}" (category: "${finalCategory}").
+    const systemPrompt = `You are an expert product analyst, consumer psychologist, SEO copywriter, and professional content strategist at "AffiMind".
+Your mission is to perform dual phases of generation (Strategic Research followed by Synthesis) in a single response for:
+Product Name: "${productName}"
+Category: "${finalCategory}"
 
-CRITICAL REQUIREMENT: We have conducted a pre-generation research phase. You MUST strictly base your content on the following pre-researched Strategic Brief:
+PHASE 1: STRATEGIC BRIEF (DEEP FOUNDATIONS)
+You must first generate research-based foundations:
+1. "deepResearch": Detailed research notes outlining design, performance, specifications, community consensus, strengths, weaknesses, and key rival comparisons.
+2. "targetAudience": A thorough description of target buyer personas, their lifestyles, demographics, daily needs, and exact pain points.
+3. "buyingIntent": Break down the user's purchase motivation (upgrading, budget alternative, luxury, etc.) and conversion triggers.
+4. "contentOutline": A detailed hierarchical layout of headings and subheadings.
 
-==================================================
-📊 STRATEGIC RESEARCH BRIEF (DEEP FOUNDATIONS)
-==================================================
-1. DEEP PRODUCT RESEARCH & ANALYSIS:
-${planningData.deepResearch}
-
-2. TARGET AUDIENCE INSIGHTS:
-${planningData.targetAudience}
-
-3. USER BUYING INTENT & motivation:
-${planningData.buyingIntent}
-
-4. EDITORIAL CONTENT OUTLINE:
-${(planningData.contentOutline || []).map((line: string) => `- ${line}`).join("\n")}
-==================================================
-
-Use this brief to write a masterclass product review. Ensure the tone is highly helpful, objective, professional yet engaging, and structured logically as outlined.
-
-You MUST generate the following structured properties:
-1. "seoTitle": Catchy, click-worthy, SEO title (max 65 chars) ending with "| AffiMind".
-2. "metaDescription": High-CTR search meta description (max 160 chars).
-3. "content": Comprehensive, expert-level, markdown-formatted product review. It should feel premium and highly citable. It MUST include a detailed analysis of key features, performance, build quality, and a dedicated "Buying Guide & Ultimate Verdict" section.
-   - For SEO (internal links), you MUST naturally insert 1-2 standard Markdown links inside the review body pointing to other relevant pages on our site.
-   - You can link to these existing reviews if applicable:
+PHASE 2: EDITORIAL SYNTHESIS (HIGH-CONVERTING ARTICLE)
+Based directly on the Foundations you mapped above, synthesize a masterclass product review and structured metadata:
+5. "seoTitle": Catchy, click-worthy, SEO title (max 65 chars) ending with "| AffiMind".
+6. "metaDescription": High-CTR search meta description (max 160 chars).
+7. "content": Comprehensive, expert-level, markdown-formatted product review. It should feel premium, objective, highly engaging, and citable. Include detailed feature analysis, performance, build quality, and a dedicated "Buying Guide & Ultimate Verdict" section.
+   - For SEO (internal links), naturally insert 1-2 standard Markdown links inside the review body pointing to other relevant pages on our site:
      ${existingArticlesForLinking.map(a => `* "${a.title}": /articles/${a.slug}`).join("\n")}
-   - Or you can link to these category index pages:
      * Wireless Earbuds category: /categories/earbuds
      * Gaming Mice category: /categories/gaming-mice
      * Coffee Makers category: /categories/coffee-makers
    - Example link: "...for alternative options, you can browse our [wireless earbuds category](/categories/earbuds) to find..."
-4. "buyingAdvice": A concise summary paragraph (approx 50-80 words) advising who this product is best suited for and who should avoid it.
-5. "pros": Array of exactly 4 clear, compelling pros.
-6. "cons": Array of exactly 2 precise cons.
-7. "rating": Numerical rating from 1.0 to 5.0 based on real community feedback (e.g., 4.7).
-8. "estimatedPrice": Estimated retail price string (e.g. "$129.99").
-9. "specs": Key-value dictionary of specs (at least 4 key-value pairs, e.g. "Battery": "30 Hours", "Driver": "11mm").
-10. "faq": Exactly 2 highly relevant FAQ question-and-answer objects.
-11. "schema": Valid Schema.org JSON-LD object for a Product Review. Make sure it specifies "@context": "https://schema.org", "@type": "Product", "name": "${productName}", "offers": { "@type": "Offer", "price": "PRICE_PLACEHOLDER", "priceCurrency": "USD", "url": "AFFILIATE_LINK_PLACEHOLDER" }, and a "review" block.
+8. "buyingAdvice": Concise summary paragraph (approx 50-80 words) advising who this product is best suited for and who should avoid it.
+9. "pros": Array of exactly 4 clear, compelling pros.
+10. "cons": Array of exactly 2 precise cons.
+11. "rating": Numerical rating from 1.0 to 5.0 (e.g., 4.7).
+12. "estimatedPrice": Estimated retail price string (e.g., "$129.99").
+13. "specs": Key-value dictionary of specs (at least 4 key-value pairs, e.g., "Battery": "30 Hours", "Driver": "11mm").
+14. "faq": Exactly 2 highly relevant FAQ question-and-answer objects.
+15. "schema": Valid Schema.org JSON-LD object for a Product Review. Make sure it specifies "@context": "https://schema.org", "@type": "Product", "name": "${productName}", "offers": { "@type": "Offer", "price": "PRICE_PLACEHOLDER", "priceCurrency": "USD", "url": "AFFILIATE_LINK_PLACEHOLDER" }, and a "review" block.
 
 Provide pristine, fully valid JSON data.`;
 
     const response = await generateContentWithRetryAndFallback({
-      contents: `Generate complete buying guide review and rich data for "${productName}" utilizing our pre-researched Strategic Brief.`,
+      contents: `Generate complete buying guide review and rich data for "${productName}" utilizing our combined planning and synthesis brief.`,
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
           properties: {
+            deepResearch: { type: Type.STRING },
+            targetAudience: { type: Type.STRING },
+            buyingIntent: { type: Type.STRING },
+            contentOutline: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING }
+            },
             seoTitle: { type: Type.STRING },
             metaDescription: { type: Type.STRING },
             content: { type: Type.STRING },
@@ -1306,13 +1264,24 @@ Provide pristine, fully valid JSON data.`;
             },
             schema: { type: Type.OBJECT }
           },
-          required: ["seoTitle", "metaDescription", "content", "buyingAdvice", "pros", "cons", "rating", "estimatedPrice", "specs", "faq", "schema"]
+          required: [
+            "deepResearch", "targetAudience", "buyingIntent", "contentOutline",
+            "seoTitle", "metaDescription", "content", "buyingAdvice", "pros", "cons",
+            "rating", "estimatedPrice", "specs", "faq", "schema"
+          ]
         }
       }
     });
 
     const parsedData = JSON.parse(response.text || "{}");
     const generatedPrice = parsedData.estimatedPrice || "$149.99";
+
+    const planningData = {
+      deepResearch: parsedData.deepResearch || "",
+      targetAudience: parsedData.targetAudience || "",
+      buyingIntent: parsedData.buyingIntent || "",
+      contentOutline: parsedData.contentOutline || []
+    };
 
     // Setup final product & article schemas
     const newProduct = {
