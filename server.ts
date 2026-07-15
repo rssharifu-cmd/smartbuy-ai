@@ -321,13 +321,24 @@ function getGemini(): GoogleGenAI {
 
 // --- API ENDPOINTS ---
 
+// Admin Authentication Middleware
+function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
+  const authHeader = req.headers.authorization;
+  const adminPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
+  
+  if (!authHeader || authHeader !== `Bearer ${adminPassword}`) {
+    return res.status(403).json({ error: "403 Unauthorized: Administrative credentials required." });
+  }
+  next();
+}
+
 // GET site settings
 app.get("/api/settings", (req, res) => {
   res.json(db.settings);
 });
 
 // POST site settings (Admin only)
-app.post("/api/settings", (req, res) => {
+app.post("/api/settings", requireAdminAuth, (req, res) => {
   const { siteName, siteDescription, seoTitle, seoDescription, affiliateDisclosure, contactEmail, adminPassword } = req.body;
   db.settings = {
     ...db.settings,
@@ -351,7 +362,7 @@ app.get("/api/categories", (req, res) => {
 });
 
 // POST category
-app.post("/api/categories", (req, res) => {
+app.post("/api/categories", requireAdminAuth, (req, res) => {
   const { name, slug, description, iconName } = req.body;
   if (!name || !slug) {
     return res.status(400).json({ error: "Name and Slug are required" });
@@ -403,7 +414,7 @@ app.get("/api/products/:slug", (req, res) => {
 });
 
 // POST product (Admin only)
-app.post("/api/products", (req, res) => {
+app.post("/api/products", requireAdminAuth, (req, res) => {
   const { title, slug, category, content, image, affiliateLink, price, rating, pros, cons, specs, faq, buyingAdvice, alternatives, featured } = req.body;
   
   if (!title || !slug || !category) {
@@ -442,7 +453,7 @@ app.post("/api/products", (req, res) => {
 });
 
 // DELETE product (Admin only)
-app.delete("/api/products/:id", (req, res) => {
+app.delete("/api/products/:id", requireAdminAuth, (req, res) => {
   const initialLen = db.products.length;
   db.products = db.products.filter(p => p.id !== req.params.id);
   if (db.products.length === initialLen) {
@@ -488,7 +499,7 @@ app.get("/api/articles/:slug", (req, res) => {
 });
 
 // DELETE article (Admin only)
-app.delete("/api/articles/:id", (req, res) => {
+app.delete("/api/articles/:id", requireAdminAuth, (req, res) => {
   const initialLen = db.articles.length;
   db.articles = db.articles.filter(a => a.id !== req.params.id);
   if (db.articles.length === initialLen) {
@@ -500,18 +511,11 @@ app.delete("/api/articles/:id", (req, res) => {
 
 // --- SECURE REST API ENDPOINT: POST /api/publish ---
 // This endpoint receives article metadata and content to support headless publishing workflows
-app.post("/api/publish", (req, res) => {
+app.post("/api/publish", requireAdminAuth, (req, res) => {
   const { title, slug, category, content, metaTitle, metaDescription, faq, schema, image, affiliateLink, status } = req.body;
   
   if (!title || !slug || !category || !content) {
     return res.status(400).json({ error: "Missing required fields: title, slug, category, and content are required." });
-  }
-
-  // Optional simple authorization header check (e.g., matching the admin password or bearer token)
-  const authHeader = req.headers.authorization;
-  const adminPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
-  if (authHeader && authHeader !== `Bearer ${adminPassword}`) {
-    return res.status(401).json({ error: "Unauthorized access token." });
   }
 
   const existingIndex = db.articles.findIndex(a => a.slug === slug);
@@ -572,6 +576,15 @@ app.post("/api/admin/reset-password", (req, res) => {
   if (!password || password.trim().length < 4) {
     return res.status(400).json({ error: "Password must be at least 4 characters long." });
   }
+
+  const currentPassword = db.settings.adminPassword;
+  if (currentPassword) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || authHeader !== `Bearer ${currentPassword}`) {
+      return res.status(403).json({ error: "403 Unauthorized: Administrative authorization required to reset password." });
+    }
+  }
+
   db.settings = {
     ...db.settings,
     adminPassword: password.trim()
@@ -1514,6 +1527,14 @@ async function handleHtmlRequest(req: express.Request, res: express.Response) {
     description = `Have questions or advertising inquiries? Contact our team of tech researchers and product specialists at AffiMind.`;
   }
 
+  let robotsTag = "";
+  if (urlPath.startsWith("/admin")) {
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
+    robotsTag = '\n    <meta name="robots" content="noindex, nofollow" />';
+    title = `Admin Portal | ${db.settings.siteName}`;
+    description = `Secure Admin Portal for catalog management and editorial configurations.`;
+  }
+
   // Read index.html template
   let templatePath = "";
   if (process.env.NODE_ENV !== "production") {
@@ -1532,7 +1553,7 @@ async function handleHtmlRequest(req: express.Request, res: express.Response) {
     // Dynamic replacement block
     const canonicalUrl = `${host}${urlPath}`;
     const headReplacements = `
-    <title>${title} | ${db.settings.siteName}</title>
+    <title>${title} | ${db.settings.siteName}</title>${robotsTag}
     <meta name="description" content="${description}" />
     <link rel="canonical" href="${canonicalUrl}" />
     <meta property="og:title" content="${ogTitle}" />

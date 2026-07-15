@@ -74,10 +74,6 @@ export const Header: React.FC<{
             <Link to="/categories" className={`hover:text-indigo-400 transition-colors ${currentPath === "/categories" ? "text-indigo-400 font-semibold" : "text-slate-300"}`}>Categories</Link>
             <Link to="/about" className={`hover:text-indigo-400 transition-colors ${currentPath === "/about" ? "text-indigo-400 font-semibold" : "text-slate-300"}`}>About</Link>
             <Link to="/contact" className={`hover:text-indigo-400 transition-colors ${currentPath === "/contact" ? "text-indigo-400 font-semibold" : "text-slate-300"}`}>Contact</Link>
-            <Link to="/admin" className="flex items-center gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg text-xs tracking-wide transition-all shadow-md">
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              Admin Portal
-            </Link>
           </nav>
 
           {/* Mobile menu and search toggle buttons */}
@@ -112,10 +108,6 @@ export const Header: React.FC<{
             <Link to="/categories" className="py-2 border-b border-slate-800 hover:text-white">Categories</Link>
             <Link to="/about" className="py-2 border-b border-slate-800 hover:text-white">About</Link>
             <Link to="/contact" className="py-2 border-b border-slate-800 hover:text-white">Contact</Link>
-            <Link to="/admin" className="flex items-center justify-center gap-2 bg-indigo-600 text-white py-2 rounded-xl text-sm font-semibold hover:bg-indigo-700">
-              <LayoutDashboard className="w-4 h-4" />
-              Admin Portal
-            </Link>
           </nav>
         </div>
       )}
@@ -154,7 +146,6 @@ export const Footer: React.FC<{
               <li><Link to="/categories" className="hover:text-white">Categories</Link></li>
               <li><Link to="/about" className="hover:text-white">About Us</Link></li>
               <li><Link to="/contact" className="hover:text-white">Contact Team</Link></li>
-              <li><Link to="/admin" className="hover:text-white">Admin Dashboard</Link></li>
             </ul>
           </div>
 

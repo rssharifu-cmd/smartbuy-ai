@@ -192,7 +192,10 @@ export const Admin: React.FC = () => {
     try {
       const res = await fetch("/api/admin/reset-password", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          ...(sessionStorage.getItem("admin_token") ? { "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}` } : {})
+        },
         body: JSON.stringify({ password: newPassword })
       });
       const data = await res.json();
