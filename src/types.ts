@@ -55,6 +55,7 @@ export interface SiteSettings {
   affiliateDisclosure: string;
   contactEmail: string;
   adminPasswordHash?: string;
+  adminPassword?: string;
 }
 
 export interface AISearchResult {

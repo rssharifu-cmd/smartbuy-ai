@@ -328,8 +328,19 @@ app.get("/api/settings", (req, res) => {
 
 // POST site settings (Admin only)
 app.post("/api/settings", (req, res) => {
-  const { siteName, siteDescription, seoTitle, seoDescription, affiliateDisclosure, contactEmail } = req.body;
-  db.settings = { siteName, siteDescription, seoTitle, seoDescription, affiliateDisclosure, contactEmail };
+  const { siteName, siteDescription, seoTitle, seoDescription, affiliateDisclosure, contactEmail, adminPassword } = req.body;
+  db.settings = {
+    ...db.settings,
+    siteName,
+    siteDescription,
+    seoTitle,
+    seoDescription,
+    affiliateDisclosure,
+    contactEmail
+  };
+  if (adminPassword) {
+    db.settings.adminPassword = adminPassword.trim();
+  }
   saveDatabase();
   res.json({ success: true, settings: db.settings });
 });
@@ -498,7 +509,7 @@ app.post("/api/publish", (req, res) => {
 
   // Optional simple authorization header check (e.g., matching the admin password or bearer token)
   const authHeader = req.headers.authorization;
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const adminPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
   if (authHeader && authHeader !== `Bearer ${adminPassword}`) {
     return res.status(401).json({ error: "Unauthorized access token." });
   }
@@ -547,12 +558,26 @@ app.post("/api/publish", (req, res) => {
 // --- ADMIN LOGIN ---
 app.post("/api/admin/login", (req, res) => {
   const { password } = req.body;
-  const correctPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const correctPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
   if (password === correctPassword) {
     res.json({ success: true, token: correctPassword });
   } else {
     res.status(401).json({ error: "Incorrect administrator password" });
   }
+});
+
+// --- ADMIN PASSWORD RESET / SET NEW ONE ---
+app.post("/api/admin/reset-password", (req, res) => {
+  const { password } = req.body;
+  if (!password || password.trim().length < 4) {
+    return res.status(400).json({ error: "Password must be at least 4 characters long." });
+  }
+  db.settings = {
+    ...db.settings,
+    adminPassword: password.trim()
+  };
+  saveDatabase();
+  res.json({ success: true, token: password.trim() });
 });
 
 // --- AI RECOMMENDATION SEARCH SYSTEM ---
@@ -823,7 +848,7 @@ app.post("/api/products/import", (req, res) => {
 
   // Security Auth check matching bearer configuration
   const authHeader = req.headers.authorization;
-  const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+  const adminPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
   if (authHeader && authHeader !== `Bearer ${adminPassword}`) {
     return res.status(401).json({ error: "Unauthorized administrative access token." });
   }

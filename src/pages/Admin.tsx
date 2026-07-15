@@ -11,6 +11,10 @@ export const Admin: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
+  const [isResetting, setIsResetting] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetSuccessMsg, setResetSuccessMsg] = useState<string | null>(null);
 
   // Tabs
   const [activeTab, setActiveTab] = useState<"articles" | "products" | "settings" | "api" | "generate" | "import" | "supabase">("articles");
@@ -102,6 +106,7 @@ export const Admin: React.FC = () => {
   const [setSeoDesc, setSetSeoDesc] = useState("");
   const [setDisclosure, setSetDisclosure] = useState("");
   const [setEmail, setSetEmail] = useState("");
+  const [setAdminPass, setSetAdminPass] = useState("");
 
   // Copy state for API tokens
   const [copiedToken, setCopiedToken] = useState(false);
@@ -138,6 +143,7 @@ export const Admin: React.FC = () => {
           setSetSeoDesc(s.seoDescription);
           setSetDisclosure(s.affiliateDisclosure);
           setSetEmail(s.contactEmail);
+          setSetAdminPass(s.adminPassword || "");
         }
       } catch (err) {
         console.error("Error loading administrative lists:", err);
@@ -165,6 +171,45 @@ export const Admin: React.FC = () => {
       }
     } catch {
       setLoginError("Failed to authenticate.");
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoginError(null);
+    setResetSuccessMsg(null);
+
+    if (newPassword.trim().length < 4) {
+      setLoginError("Password must be at least 4 characters long.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setLoginError("Passwords do not match.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: newPassword })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setResetSuccessMsg("Password set successfully! Logging in...");
+        sessionStorage.setItem("admin_token", data.token);
+        setPassword(newPassword);
+        setTimeout(() => {
+          setIsAuthenticated(true);
+          setIsResetting(false);
+          setResetSuccessMsg(null);
+        }, 1500);
+      } else {
+        setLoginError(data.error || "Failed to update password.");
+      }
+    } catch {
+      setLoginError("Failed to communicate with reset server.");
     }
   };
 
@@ -592,11 +637,15 @@ export const Admin: React.FC = () => {
           seoTitle: setSeoTitle,
           seoDescription: setSeoDesc,
           affiliateDisclosure: setDisclosure,
-          contactEmail: setEmail
+          contactEmail: setEmail,
+          adminPassword: setAdminPass
         })
       });
 
       if (res.ok) {
+        if (setAdminPass) {
+          sessionStorage.setItem("admin_token", setAdminPass);
+        }
         showStatus("success", "Editorial configuration parameters stored!");
       } else {
         showStatus("error", "Failed to store parameters.");
@@ -635,38 +684,122 @@ export const Admin: React.FC = () => {
             <div className="bg-indigo-600 p-3 rounded-full w-fit mx-auto text-white shadow-lg shadow-indigo-600/20 mb-4">
               <Lock className="w-6 h-6" />
             </div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Admin Gate</h1>
-            <p className="text-xs text-slate-400 mt-1">Provide credentials to modify the product catalog, edit settings, or view API parameters.</p>
+            <h1 className="text-2xl font-bold text-white tracking-tight">
+              {isResetting ? "Set New Admin Password" : "Admin Gate"}
+            </h1>
+            <p className="text-xs text-slate-400 mt-1">
+              {isResetting 
+                ? "Define a new security password to gain control of your administrator workspace." 
+                : "Provide credentials to modify the product catalog, edit settings, or view API parameters."}
+            </p>
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Security Password *</label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
-              />
-              <p className="text-[10px] text-slate-500 mt-1.5">Note: Default password is 'admin123' if not overridden in your server secrets environment variables.</p>
-            </div>
-
-            {loginError && (
-              <div className="bg-rose-950/40 border border-rose-900/50 p-3 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                <span>{loginError}</span>
+          {isResetting ? (
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">New Security Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
               </div>
-            )}
 
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-all shadow-md"
-            >
-              Sign In
-            </button>
-          </form>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Confirm New Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••••••"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              {loginError && (
+                <div className="bg-rose-950/40 border border-rose-900/50 p-3 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              {resetSuccessMsg && (
+                <div className="bg-emerald-950/40 border border-emerald-900/50 p-3 rounded-xl text-xs text-emerald-400 font-medium flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>{resetSuccessMsg}</span>
+                </div>
+              )}
+
+              <div className="space-y-2 pt-2">
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-all shadow-md cursor-pointer"
+                >
+                  Save New Password & Log In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsResetting(false);
+                    setLoginError(null);
+                  }}
+                  className="w-full bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-300 font-bold py-2 px-4 rounded-xl text-xs transition-all cursor-pointer"
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Security Password *</label>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1.5">Note: Default password is 'admin123' if not overridden in your server secrets environment variables.</p>
+              </div>
+
+              {loginError && (
+                <div className="bg-rose-950/40 border border-rose-900/50 p-3 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                  <span>{loginError}</span>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition-all shadow-md cursor-pointer"
+                >
+                  Sign In
+                </button>
+                
+                <div className="text-center pt-2 border-t border-slate-900">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsResetting(true);
+                      setLoginError(null);
+                      setNewPassword("");
+                      setConfirmPassword("");
+                    }}
+                    className="text-indigo-400 hover:text-indigo-300 text-xs font-semibold focus:outline-none cursor-pointer"
+                  >
+                    Forgot or need to set a new password?
+                  </button>
+                </div>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     );
@@ -1486,6 +1619,19 @@ export const Admin: React.FC = () => {
                       onChange={(e) => setSetDisclosure(e.target.value)}
                       className="w-full bg-slate-900 border border-slate-800 rounded-xl p-4 text-xs sm:text-sm text-slate-100 focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
                     ></textarea>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wide mb-1">Administrator Security Password</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      value={setAdminPass}
+                      onChange={(e) => setSetAdminPass(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2 text-slate-100 focus:outline-none focus:border-indigo-500"
+                    />
+                    <p className="text-[10px] text-slate-500 mt-1">Change this field to override the access password for this Admin Panel and secure API publishing.</p>
                   </div>
 
                   <button
