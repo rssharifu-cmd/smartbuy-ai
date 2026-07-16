@@ -12,6 +12,8 @@ import { Article, Category, AffiliateTool } from "../types.ts";
 export const ArticleDetail: React.FC = () => {
   const [slug, setSlug] = useState<string>("");
   const [article, setArticle] = useState<Article | null>(null);
+  const [prevArticle, setPrevArticle] = useState<any | null>(null);
+  const [nextArticle, setNextArticle] = useState<any | null>(null);
   const [suggestedTools, setSuggestedTools] = useState<AffiliateTool[]>([]);
   const [relatedArticles, setRelatedArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -51,6 +53,8 @@ export const ArticleDetail: React.FC = () => {
         setArticle(data.article);
         setSuggestedTools(data.relatedTools || []);
         setRelatedArticles(data.relatedArticles || []);
+        setPrevArticle(data.previousArticle || null);
+        setNextArticle(data.nextArticle || null);
 
         // Record analytic view triggers
         await fetch("/api/articles/track-click", {
@@ -129,6 +133,21 @@ export const ArticleDetail: React.FC = () => {
   const getCategoryName = (catSlug: string) => {
     const cat = categories.find(c => c.slug === catSlug);
     return cat ? cat.name : catSlug;
+  };
+
+  const extractHeadings = (text: string) => {
+    const lines = text.split("\n");
+    const headings: { text: string; level: number; slug: string }[] = [];
+    for (const line of lines) {
+      const match = line.match(/^(#{1,3})\s+(.+)$/);
+      if (match) {
+        const level = match[1].length;
+        const title = match[2].replace(/[#*`_]/g, "").trim();
+        const headingSlug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        headings.push({ text: title, level, slug: headingSlug });
+      }
+    }
+    return headings;
   };
 
   // Build high-fidelity NewsArticle schema JSON-LD
@@ -252,7 +271,27 @@ export const ArticleDetail: React.FC = () => {
             {/* Markdown rendered body */}
             <article className="prose prose-slate dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 text-base sm:text-[17px] leading-relaxed space-y-6">
               <div className="markdown-body">
-                <ReactMarkdown>{article.content}</ReactMarkdown>
+                <ReactMarkdown
+                  components={{
+                    h1: ({ children }) => {
+                      const text = React.Children.toArray(children).join("");
+                      const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                      return <h1 id={slug}>{children}</h1>;
+                    },
+                    h2: ({ children }) => {
+                      const text = React.Children.toArray(children).join("");
+                      const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                      return <h2 id={slug}>{children}</h2>;
+                    },
+                    h3: ({ children }) => {
+                      const text = React.Children.toArray(children).join("");
+                      const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+                      return <h3 id={slug}>{children}</h3>;
+                    }
+                  }}
+                >
+                  {article.content}
+                </ReactMarkdown>
               </div>
             </article>
 
@@ -350,6 +389,33 @@ export const ArticleDetail: React.FC = () => {
                 </div>
               </div>
             )}
+
+            {/* Previous / Next Navigation */}
+            {(prevArticle || nextArticle) && (
+              <div className="pt-8 border-t border-slate-150 dark:border-slate-900 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {prevArticle ? (
+                  <a
+                    href={`/article/${prevArticle.slug}`}
+                    className="p-5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/10 border border-slate-150 dark:border-slate-900 hover:border-indigo-500/30 transition-all text-left flex flex-col justify-between group cursor-pointer"
+                  >
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block mb-1">← Previous Article</span>
+                    <strong className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 group-hover:text-indigo-500 transition-colors line-clamp-2 leading-snug">{prevArticle.title}</strong>
+                  </a>
+                ) : (
+                  <div className="hidden sm:block" />
+                )}
+
+                {nextArticle && (
+                  <a
+                    href={`/article/${nextArticle.slug}`}
+                    className="p-5 rounded-2xl bg-slate-50/50 dark:bg-slate-900/10 border border-slate-150 dark:border-slate-900 hover:border-indigo-500/30 transition-all text-right flex flex-col justify-between group cursor-pointer"
+                  >
+                    <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider block mb-1">Next Article →</span>
+                    <strong className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 group-hover:text-indigo-500 transition-colors line-clamp-2 leading-snug">{nextArticle.title}</strong>
+                  </a>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Sidebar Widgets (Right column) */}
@@ -367,6 +433,74 @@ export const ArticleDetail: React.FC = () => {
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 leading-relaxed">
                 {assignedAuthor.bio}
               </p>
+            </div>
+
+            {/* Table of Contents Widget */}
+            {(() => {
+              const headings = extractHeadings(article.content);
+              if (headings.length === 0) return null;
+              return (
+                <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-slate-900 shadow-sm space-y-4">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-900 pb-2">
+                    <BookOpen className="w-4 h-4 text-indigo-500" /> Table of Contents
+                  </h3>
+                  <nav className="space-y-2.5">
+                    {headings.map((h, i) => (
+                      <a
+                        key={i}
+                        href={`#${h.slug}`}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          const el = document.getElementById(h.slug);
+                          if (el) {
+                            el.scrollIntoView({ behavior: "smooth" });
+                          }
+                        }}
+                        className={`block text-[11px] leading-snug hover:text-indigo-500 transition-colors ${
+                          h.level === 3 ? "pl-4 text-slate-400 dark:text-slate-500" : "font-bold text-slate-750 dark:text-slate-350"
+                        }`}
+                      >
+                        {h.text}
+                      </a>
+                    ))}
+                  </nav>
+                </div>
+              );
+            })()}
+
+            {/* Social Share Widget */}
+            <div className="bg-white dark:bg-slate-950 p-6 rounded-3xl border border-slate-200 dark:border-slate-900 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 flex items-center gap-1.5 border-b border-slate-100 dark:border-slate-900 pb-2">
+                <Sparkles className="w-4 h-4 text-indigo-500" /> Share This Article
+              </h3>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(article.title)}&url=${encodeURIComponent(window.location.href)}`, "_blank");
+                  }}
+                  className="flex-1 bg-slate-100 hover:bg-indigo-550/10 hover:text-indigo-500 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold py-2 rounded-xl text-[10px] transition-colors border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  Twitter/X
+                </button>
+                <button
+                  onClick={() => {
+                    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(window.location.href)}`, "_blank");
+                  }}
+                  className="flex-1 bg-slate-100 hover:bg-indigo-550/10 hover:text-indigo-500 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold py-2 rounded-xl text-[10px] transition-colors border border-slate-200 dark:border-slate-800 flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  LinkedIn
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(window.location.href);
+                    alert("Article link copied to clipboard successfully!");
+                  }}
+                  className="bg-slate-100 hover:bg-indigo-550/10 hover:text-indigo-500 dark:bg-slate-900 text-slate-700 dark:text-slate-300 font-bold p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 flex items-center justify-center cursor-pointer"
+                  title="Copy Link"
+                >
+                  <Tag className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
 
             {/* Related Informational Guides */}

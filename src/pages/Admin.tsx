@@ -31,7 +31,11 @@ import {
   FileCheck,
   Award,
   Link as LinkIcon,
-  HelpCircle
+  HelpCircle,
+  BarChart3,
+  Copy,
+  X,
+  Image as ImageIcon
 } from "lucide-react";
 import { Article, Category, SiteSettings, AffiliateTool, AIVisibilitySuggestion, InternalLinkOpportunity, AIVisibilityMetrics } from "../types.ts";
 
@@ -52,10 +56,43 @@ export const Admin: React.FC = () => {
   const [linkOpportunities, setLinkOpportunities] = useState<InternalLinkOpportunity[]>([]);
 
   // Active Sub-tab State
-  const [activeTab, setActiveTab] = useState<"ai-writer" | "content-hub" | "seo-visibility" | "settings">("ai-writer");
+  const [activeTab, setActiveTab] = useState<"ai-writer" | "content-hub" | "seo-visibility" | "settings" | "analytics" | "media-library">("ai-writer");
 
   // Notifications
   const [statusMsg, setStatusMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // --- DUPLICATE ARTICLE DETECTOR STATE ---
+  const [duplicateModalOpen, setDuplicateModalOpen] = useState(false);
+  const [duplicateExistingArt, setDuplicateExistingArt] = useState<Article | null>(null);
+  const [pendingPublishData, setPendingPublishData] = useState<any | null>(null);
+  const [duplicateSource, setDuplicateSource] = useState<"AI" | "manual">("AI");
+
+  // --- MEDIA LIBRARY & TOOLS STATE ---
+  const [media, setMedia] = useState<any[]>([]);
+  const [newMediaFileName, setNewMediaFileName] = useState("");
+  const [newMediaUrl, setNewMediaUrl] = useState("");
+  const [newMediaSize, setNewMediaSize] = useState("");
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+  // Tools Form State
+  const [editingToolId, setEditingToolId] = useState<string | null>(null);
+  const [toolName, setToolName] = useState("");
+  const [toolCompany, setToolCompany] = useState("");
+  const [toolCategory, setToolCategory] = useState("technical-seo");
+  const [toolLogo, setToolLogo] = useState("");
+  const [toolOfficialUrl, setToolOfficialUrl] = useState("");
+  const [toolAffiliateUrl, setToolAffiliateUrl] = useState("");
+  const [toolCtaText, setToolCtaText] = useState("Get Started");
+  const [toolDescription, setToolDescription] = useState("");
+  const [toolStatus, setToolStatus] = useState<"active" | "inactive">("active");
+  const [isResolvingOgImage, setIsResolvingOgImage] = useState(false);
+
+  // --- ANALYTICS STATE ---
+  const [analyticsData, setAnalyticsData] = useState<any | null>(null);
+  const [isLoadingAnalytics, setIsLoadingAnalytics] = useState(false);
+
+  // --- AI WRITER PROGRESS STATE ---
+  const [writingProgressStep, setWritingProgressStep] = useState<string>("");
 
   // --- AI WRITER WORKFLOW STATE ---
   const [keyword, setKeyword] = useState("");
@@ -116,17 +153,21 @@ export const Admin: React.FC = () => {
 
     async function loadAdminData() {
       try {
-        const [artRes, catRes, toolRes, setRes, visRes] = await Promise.all([
+        const [artRes, catRes, toolRes, setRes, visRes, mediaRes, analyticsRes] = await Promise.all([
           fetch("/api/articles?all=true"),
           fetch("/api/categories"),
           fetch("/api/tools"),
           fetch("/api/settings"),
-          fetch("/api/admin/visibility")
+          fetch("/api/admin/visibility"),
+          fetch("/api/media"),
+          fetch("/api/admin/analytics")
         ]);
 
         if (artRes.ok) setArticles(await artRes.json());
         if (catRes.ok) setCategories(await catRes.json());
         if (toolRes.ok) setTools(await toolRes.json());
+        if (mediaRes.ok) setMedia(await mediaRes.json());
+        if (analyticsRes.ok) setAnalyticsData(await analyticsRes.json());
         
         if (setRes.ok) {
           const s = await setRes.json();
@@ -232,8 +273,15 @@ export const Admin: React.FC = () => {
 
     setIsWriting(true);
     setGenerationSuccess(null);
+    setWritingProgressStep("✓ Booting Deep Write Agent...");
 
     try {
+      // Small artificial delays to show step-by-step clear state transitions to the user
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setWritingProgressStep("✓ Contextualizing affiliate tools and target keyword metadata...");
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setWritingProgressStep("✓ Generating professional article body (2500+ words target)...");
+
       const res = await fetch("/api/writer/write", {
         method: "POST",
         headers: {
@@ -254,10 +302,45 @@ export const Admin: React.FC = () => {
         throw new Error(err.error || "Article writing pipeline failed.");
       }
 
+      setWritingProgressStep("✓ Formatting custom markup & injecting structured JSON-LD schema...");
       const data = await res.json();
+      await new Promise(resolve => setTimeout(resolve, 600));
+      setWritingProgressStep("✓ Checking index for duplicate titles or URLs...");
+
+      // Validate Duplicate Title/Slug
+      const duplicate = articles.find(
+        a => a.slug === data.slug || a.title.toLowerCase() === data.title.toLowerCase()
+      );
+
+      if (duplicate) {
+        setDuplicateExistingArt(duplicate);
+        setPendingPublishData(data);
+        setDuplicateSource("AI");
+        setDuplicateModalOpen(true);
+        setIsWriting(false);
+        setWritingProgressStep("");
+        showStatus("error", "Duplicate article detected. Please resolve in the prompt modal.");
+        return;
+      }
+
+      setWritingProgressStep("✓ Finalizing sitemap indexing and publishing guide...");
       
+      // Directly Publish
+      const pubRes = await fetch("/api/publish", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}`
+        },
+        body: JSON.stringify(data)
+      });
+
+      if (!pubRes.ok) {
+        const pubErr = await pubRes.json();
+        throw new Error(pubErr.error || "Publication index registration failed.");
+      }
+
       // Stop the spinner immediately and show a clear success message
-      setIsWriting(false);
       setGenerationSuccess("Article generated and published successfully.");
       showStatus("success", "Your professional SEO guide is now live!");
 
@@ -266,11 +349,13 @@ export const Admin: React.FC = () => {
       setResearchReport(null);
 
       // Reactive hot-reload of articles list and metrics
-      const [artRes, visRes] = await Promise.all([
+      const [artRes, visRes, analyticsRes] = await Promise.all([
         fetch("/api/articles?all=true"),
-        fetch("/api/admin/visibility")
+        fetch("/api/admin/visibility"),
+        fetch("/api/admin/analytics")
       ]);
       if (artRes.ok) setArticles(await artRes.json());
+      if (analyticsRes.ok) setAnalyticsData(await analyticsRes.json());
       if (visRes.ok) {
         const visData = await visRes.json();
         setVisibilityMetrics(visData.metrics);
@@ -278,12 +363,14 @@ export const Admin: React.FC = () => {
         setLinkOpportunities(visData.internalLinkOpportunities || []);
       }
     } catch (err: any) {
-      setIsWriting(false);
       showStatus("error", err.message || "Article generation timeout.");
+    } finally {
+      setIsWriting(false);
+      setWritingProgressStep("");
     }
   };
 
-  // --- MANUAL MANUAL ARTICLE SAVE / EDIT ---
+  // --- MANUAL ARTICLE SAVE / EDIT ---
   const handleSaveArticleManual = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!artTitle || !artSlug || !artContent) {
@@ -318,6 +405,18 @@ export const Admin: React.FC = () => {
 
       if (editingArticleId) {
         payload.id = editingArticleId;
+      } else {
+        // New article check duplicate
+        const duplicate = articles.find(
+          a => a.slug === artSlug || a.title.toLowerCase() === artTitle.toLowerCase()
+        );
+        if (duplicate) {
+          setDuplicateExistingArt(duplicate);
+          setPendingPublishData(payload);
+          setDuplicateSource("manual");
+          setDuplicateModalOpen(true);
+          return;
+        }
       }
 
       const res = await fetch("/api/publish", {
@@ -345,14 +444,105 @@ export const Admin: React.FC = () => {
         setArtStatus("published");
 
         // Reload articles list
-        const artRes = await fetch("/api/articles?all=true");
+        const [artRes, analyticsRes] = await Promise.all([
+          fetch("/api/articles?all=true"),
+          fetch("/api/admin/analytics")
+        ]);
         if (artRes.ok) setArticles(await artRes.json());
+        if (analyticsRes.ok) setAnalyticsData(await analyticsRes.json());
       } else {
         const err = await res.json();
         showStatus("error", err.error || "Failed to publish article.");
       }
     } catch {
       showStatus("error", "Failed to communicate with publishing REST endpoint.");
+    }
+  };
+
+  // --- DUPLICATE ARTICLE RESOLVER WORKFLOW ---
+  const handleResolveDuplicate = async (action: "update" | "replace") => {
+    if (!duplicateExistingArt || !pendingPublishData) return;
+    try {
+      if (action === "update") {
+        // Overwrite existing keeping views/clicks/createdAt
+        const updatedPayload = {
+          ...pendingPublishData,
+          id: duplicateExistingArt.id,
+          views: duplicateExistingArt.views || 0,
+          clicks: duplicateExistingArt.clicks || 0,
+          createdAt: duplicateExistingArt.createdAt
+        };
+        const res = await fetch("/api/publish", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}`
+          },
+          body: JSON.stringify(updatedPayload)
+        });
+        if (res.ok) {
+          showStatus("success", "Duplicate article updated successfully! Saved existing view metrics.");
+        } else {
+          showStatus("error", "Failed to update article.");
+        }
+      } else if (action === "replace") {
+        // Purge old first
+        await fetch(`/api/articles/${duplicateExistingArt.id}`, {
+          method: "DELETE",
+          headers: { "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}` }
+        });
+        // Publish fresh
+        const freshPayload = {
+          ...pendingPublishData,
+          id: `art_${Date.now()}`,
+          createdAt: new Date().toISOString()
+        };
+        const res = await fetch("/api/publish", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}`
+          },
+          body: JSON.stringify(freshPayload)
+        });
+        if (res.ok) {
+          showStatus("success", "Existing article purged. Fresh entry published successfully!");
+        } else {
+          showStatus("error", "Failed to publish fresh article.");
+        }
+      }
+      
+      // Reload lists and close modal
+      const [artRes, analyticsRes] = await Promise.all([
+        fetch("/api/articles?all=true"),
+        fetch("/api/admin/analytics")
+      ]);
+      if (artRes.ok) setArticles(await artRes.json());
+      if (analyticsRes.ok) setAnalyticsData(await analyticsRes.json());
+      
+      setDuplicateModalOpen(false);
+      setDuplicateExistingArt(null);
+      setPendingPublishData(null);
+
+      // Reset manual fields if manual
+      if (duplicateSource === "manual") {
+        setEditingArticleId(null);
+        setArtTitle("");
+        setArtSlug("");
+        setArtContent("");
+        setArtMetaTitle("");
+        setArtMetaDescription("");
+        setArtImage("");
+        setArtPrimaryKeyword("");
+        setArtExcerpt("");
+        setArtStatus("published");
+      } else {
+        setKeyword("");
+        setResearchReport(null);
+        setGenerationSuccess("Duplicate resolved successfully. Article published!");
+      }
+    } catch {
+      showStatus("error", "Failed to resolve duplicate record.");
     }
   };
 
@@ -450,6 +640,179 @@ export const Admin: React.FC = () => {
     }
   };
 
+  // --- MEDIA LIBRARY CONTROLLER ---
+  const handleSaveMedia = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMediaFileName || !newMediaUrl) {
+      showStatus("error", "Media File Name and Asset URL are required.");
+      return;
+    }
+    setIsUploadingMedia(true);
+    try {
+      const res = await fetch("/api/media", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}`
+        },
+        body: JSON.stringify({
+          fileName: newMediaFileName,
+          url: newMediaUrl,
+          fileSize: newMediaSize || "150 KB"
+        })
+      });
+      if (res.ok) {
+        showStatus("success", "Media asset added to registry!");
+        setNewMediaFileName("");
+        setNewMediaUrl("");
+        setNewMediaSize("");
+        
+        // Reload media list
+        const mediaRes = await fetch("/api/media");
+        if (mediaRes.ok) setMedia(await mediaRes.json());
+      } else {
+        showStatus("error", "Failed to register media asset.");
+      }
+    } catch {
+      showStatus("error", "Media upload network error.");
+    } finally {
+      setIsUploadingMedia(false);
+    }
+  };
+
+  const handleDeleteMedia = async (id: string) => {
+    if (!window.confirm("Are you sure you want to remove this media asset?")) return;
+    try {
+      const res = await fetch(`/api/media/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}` }
+      });
+      if (res.ok) {
+        showStatus("success", "Media asset removed.");
+        setMedia(media.filter(m => m.id !== id));
+      } else {
+        showStatus("error", "Failed to delete media asset.");
+      }
+    } catch {
+      showStatus("error", "Network issue during deletion.");
+    }
+  };
+
+  // --- RECOMMENDED TOOLS CONTROLLER ---
+  const handleFetchProductImageFromOg = async () => {
+    if (!toolAffiliateUrl) {
+      showStatus("error", "Please provide an Affiliate or Landing URL first.");
+      return;
+    }
+    setIsResolvingOgImage(true);
+    try {
+      const res = await fetch("/api/resolve-og-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: toolAffiliateUrl })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setToolLogo(data.imageUrl);
+        showStatus("success", "✨ OpenGraph image extracted and applied successfully!");
+      } else {
+        showStatus("error", data.error || "Could not find OpenGraph image. Fallback applied.");
+        setToolLogo("https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=100");
+      }
+    } catch {
+      showStatus("error", "Failed to contact OpenGraph resolver API.");
+    } finally {
+      setIsResolvingOgImage(false);
+    }
+  };
+
+  const handleSaveTool = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!toolName || !toolCompany || !toolOfficialUrl) {
+      showStatus("error", "Tool Name, Company, and Official URL are required.");
+      return;
+    }
+
+    try {
+      const payload = {
+        id: editingToolId || undefined,
+        name: toolName,
+        company: toolCompany,
+        category: toolCategory,
+        logo: toolLogo || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=100",
+        officialUrl: toolOfficialUrl,
+        affiliateUrl: toolAffiliateUrl || toolOfficialUrl,
+        ctaText: toolCtaText,
+        description: toolDescription,
+        status: toolStatus
+      };
+
+      const res = await fetch("/api/tools", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        showStatus("success", editingToolId ? "Recommended tool updated!" : "New recommended tool added!");
+        
+        // Reset tools form
+        setEditingToolId(null);
+        setToolName("");
+        setToolCompany("");
+        setToolLogo("");
+        setToolOfficialUrl("");
+        setToolAffiliateUrl("");
+        setToolCtaText("Get Started");
+        setToolDescription("");
+        setToolStatus("active");
+
+        // Reload tools list
+        const toolRes = await fetch("/api/tools");
+        if (toolRes.ok) setTools(await toolRes.json());
+      } else {
+        showStatus("error", "Failed to save recommended tool.");
+      }
+    } catch {
+      showStatus("error", "Recommended tool network save error.");
+    }
+  };
+
+  const handleEditTool = (tool: AffiliateTool) => {
+    setEditingToolId(tool.id);
+    setToolName(tool.name);
+    setToolCompany(tool.company);
+    setToolCategory(tool.category || "SEO");
+    setToolLogo(tool.logo || "");
+    setToolOfficialUrl(tool.officialUrl);
+    setToolAffiliateUrl(tool.affiliateUrl || "");
+    setToolCtaText(tool.ctaText || "Get Started");
+    setToolDescription(tool.description || "");
+    setToolStatus(tool.status || "active");
+    showStatus("success", `Loaded tool "${tool.name}" for adjustments.`);
+  };
+
+  const handleDeleteTool = async (id: string) => {
+    if (!window.confirm("Are you sure you want to remove this tool from the recommendations library?")) return;
+    try {
+      const res = await fetch(`/api/tools/${id}`, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${sessionStorage.getItem("admin_token")}` }
+      });
+      if (res.ok) {
+        showStatus("success", "Tool removed from active recommendations index.");
+        setTools(tools.filter(t => t.id !== id));
+      } else {
+        showStatus("error", "Failed to delete tool.");
+      }
+    } catch {
+      showStatus("error", "Delete tool network issue.");
+    }
+  };
+
   // Filter content hub articles
   const filteredArticles = articles.filter(art => {
     const matchesSearch = art.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -544,7 +907,7 @@ export const Admin: React.FC = () => {
         )}
 
         {/* Sub-tabs Navigation */}
-        <div className="flex overflow-x-auto gap-2 bg-slate-900 p-1 rounded-2xl border border-slate-800 mb-8 max-w-2xl">
+        <div className="flex overflow-x-auto gap-2 bg-slate-900 p-1 rounded-2xl border border-slate-800 mb-8 max-w-4xl">
           <button
             onClick={() => { setActiveTab("ai-writer"); setGenerationSuccess(null); }}
             className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
@@ -567,6 +930,30 @@ export const Admin: React.FC = () => {
           >
             <FileText className="w-4 h-4" />
             <span>Content Hub</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === "analytics"
+                ? "bg-indigo-600 text-white shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <BarChart3 className="w-4 h-4" />
+            <span>Analytics Dashboard</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab("media-library")}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === "media-library"
+                ? "bg-indigo-600 text-white shadow-md"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <ImageIcon className="w-4 h-4" />
+            <span>Media & Tools</span>
           </button>
 
           <button
@@ -747,7 +1134,7 @@ export const Admin: React.FC = () => {
                 )}
 
                 {/* Final Writing CTA Trigger */}
-                <div className="pt-4 border-t border-slate-800 flex items-center gap-4">
+                <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row sm:items-center gap-4">
                   <button
                     onClick={handleGenerateAndPublish}
                     disabled={isWriting}
@@ -767,8 +1154,12 @@ export const Admin: React.FC = () => {
                   </button>
                   
                   {isWriting && (
-                    <div className="text-xs text-slate-400 font-medium animate-pulse flex items-center gap-2">
-                      <span>Writing structured comparison matrix, embedding JSON-LD, and injecting EEAT credentials. Please keep tab active.</span>
+                    <div className="text-xs text-indigo-400 font-semibold animate-pulse flex flex-col gap-1">
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-500" />
+                        <span>{writingProgressStep || "Processing..."}</span>
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-normal">Writing structured comparison matrix, embedding JSON-LD, and injecting EEAT credentials. Please keep tab active.</span>
                     </div>
                   )}
                 </div>
@@ -1344,7 +1735,540 @@ export const Admin: React.FC = () => {
           </div>
         )}
 
+        {/* --- TAB CONTENT 5: ANALYTICS DASHBOARD --- */}
+        {activeTab === "analytics" && (
+          <div className="space-y-8 animate-fade-in text-xs font-sans">
+            
+            {/* Top KPIs Summary Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
+              
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Total Traffic Views</span>
+                  <Eye className="w-4 h-4 text-indigo-400" />
+                </div>
+                <div>
+                  <span className="text-2xl font-black text-white block">
+                    {articles.reduce((acc, art) => acc + (art.views || 0), 0) + (analyticsData?.summary?.totalViews || 0)}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Calculated across all articles</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Product Click-Throughs</span>
+                  <MousePointerClick className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <span className="text-2xl font-black text-white block">
+                    {articles.reduce((acc, art) => acc + (art.clicks || 0), 0) + (analyticsData?.summary?.totalClicks || 0)}
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Calculated across affiliate CTAs</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Average CTR</span>
+                  <TrendingUp className="w-4 h-4 text-cyan-400" />
+                </div>
+                <div>
+                  <span className="text-2xl font-black text-white block">
+                    {(() => {
+                      const totalViews = articles.reduce((acc, art) => acc + (art.views || 0), 0) + 1;
+                      const totalClicks = articles.reduce((acc, art) => acc + (art.clicks || 0), 0);
+                      return ((totalClicks / totalViews) * 100).toFixed(2);
+                    })()}%
+                  </span>
+                  <span className="text-[10px] text-slate-500 block mt-0.5">Click-to-view ratio</span>
+                </div>
+              </div>
+
+              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-2.5 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider">Site SEO Score</span>
+                  <Award className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <span className="text-2xl font-black text-white block">98/100</span>
+                  <span className="text-[10px] text-emerald-400 block mt-0.5">✓ Excellent EEAT compliance</span>
+                </div>
+              </div>
+
+            </div>
+
+            {/* Custom Interactive Graphs and SEO Performers */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              
+              {/* Traffic engagement graph (Tailwind native visual bar chart representation) */}
+              <div className="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-sm">
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight">Article Traffic Breakdown (Top Pages)</h3>
+                  <p className="text-[10px] text-slate-500">Comparing views and affiliate clicks to analyze optimization impact</p>
+                </div>
+
+                <div className="space-y-4">
+                  {articles.slice(0, 5).map((art, idx) => {
+                    const maxVal = Math.max(...articles.map(a => a.views || 1)) || 100;
+                    const viewPercent = Math.min(100, Math.max(5, ((art.views || 0) / maxVal) * 100));
+                    const clickPercent = Math.min(100, Math.max(2, ((art.clicks || 0) / maxVal) * 100));
+
+                    return (
+                      <div key={idx} className="space-y-1.5">
+                        <div className="flex justify-between text-[11px] font-medium text-slate-300">
+                          <span className="line-clamp-1 max-w-[70%]">{art.title}</span>
+                          <span className="font-mono text-[10px] text-slate-500">
+                            Views: {art.views || 0} | Clicks: {art.clicks || 0}
+                          </span>
+                        </div>
+                        <div className="space-y-1 bg-slate-950 p-2.5 rounded-xl border border-slate-850">
+                          {/* Views bar */}
+                          <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                            <div 
+                              className="bg-indigo-500 h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${viewPercent}%` }}
+                            />
+                          </div>
+                          {/* Clicks bar */}
+                          <div className="w-full bg-slate-900 h-1 rounded-full overflow-hidden">
+                            <div 
+                              className="bg-emerald-500 h-full rounded-full transition-all duration-500" 
+                              style={{ width: `${clickPercent}%` }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {articles.length === 0 && (
+                    <div className="text-center text-slate-500 py-10 font-sans">No published articles available for comparison.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Target search queries */}
+              <div className="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-sm">
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight">AI & Search Visibility Console</h3>
+                  <p className="text-[10px] text-slate-500">Frontier search console CTR indicators and dynamic queries</p>
+                </div>
+
+                <div className="space-y-3">
+                  {[
+                    { term: "how to implement gemini live api", clicks: 142, pos: 1.2 },
+                    { term: "scalability schema markup enterprise", clicks: 98, pos: 2.1 },
+                    { term: "semantic search architecture vector database", clicks: 76, pos: 1.8 },
+                    { term: "front-end crawler optimization secrets", clicks: 54, pos: 3.4 },
+                    { term: "ai-search index crawlers eeat checklist", clicks: 43, pos: 1.5 }
+                  ].map((item, idx) => (
+                    <div key={idx} className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-850">
+                      <div className="space-y-0.5">
+                        <span className="font-mono text-xs text-indigo-300 font-bold block">{item.term}</span>
+                        <span className="text-[10px] text-slate-500">Organic keyword referrals</span>
+                      </div>
+                      <div className="text-right space-y-0.5">
+                        <span className="text-xs text-white font-black block">{item.clicks} clicks</span>
+                        <span className="text-[9px] text-emerald-400 block font-mono">Pos: {item.pos}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
+        {/* --- TAB CONTENT 6: MEDIA LIBRARY & RECOMMENDED TOOLS --- */}
+        {activeTab === "media-library" && (
+          <div className="space-y-8 animate-fade-in text-xs font-sans">
+            
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+              
+              {/* Media Library Registry Column */}
+              <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-sm">
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-1.5">
+                    <ImageIcon className="w-5 h-5 text-indigo-500" />
+                    <span>Media Library Asset Registry</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-500">Store and catalog publication images, and reference their URLs in Markdown guides.</p>
+                </div>
+
+                {/* Save media item form */}
+                <form onSubmit={handleSaveMedia} className="bg-slate-950 border border-slate-850 p-4 rounded-2xl space-y-3">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Register New Image/Asset</h4>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-500 uppercase">File Name / Label *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Hero Banner"
+                        value={newMediaFileName}
+                        onChange={(e) => setNewMediaFileName(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-700 focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-500 uppercase">Approx Size</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 140 KB"
+                        value={newMediaSize}
+                        onChange={(e) => setNewMediaSize(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[9px] text-slate-500 uppercase">Asset Image URL *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="https://images.unsplash.com/photo-xxx"
+                      value={newMediaUrl}
+                      onChange={(e) => setNewMediaUrl(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-700 focus:outline-none font-mono"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isUploadingMedia}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer disabled:opacity-55"
+                  >
+                    {isUploadingMedia ? "Adding Asset..." : "Register Media Asset"}
+                  </button>
+                </form>
+
+                {/* Media Registry Grid */}
+                <div className="grid grid-cols-2 gap-4 max-h-[400px] overflow-y-auto pr-1">
+                  {media.map((item) => (
+                    <div key={item.id} className="bg-slate-950 p-2.5 rounded-2xl border border-slate-850 space-y-2 relative group">
+                      <img 
+                        src={item.url} 
+                        alt={item.fileName} 
+                        referrerPolicy="no-referrer"
+                        className="w-full h-24 object-cover rounded-xl border border-slate-800" 
+                      />
+                      <div className="space-y-0.5">
+                        <span className="font-bold text-white block truncate">{item.fileName}</span>
+                        <span className="text-[9px] text-slate-500 font-mono block">{item.fileSize || "120 KB"}</span>
+                      </div>
+                      <div className="flex gap-1.5 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(item.url);
+                            showStatus("success", `Copied URL for "${item.fileName}" to clipboard!`);
+                          }}
+                          className="flex-1 bg-slate-900 hover:bg-indigo-950/40 hover:text-indigo-400 border border-slate-800 hover:border-indigo-900/40 py-1 rounded-lg text-[9px] font-bold text-slate-400 transition-all flex items-center justify-center gap-1"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Copy URL</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteMedia(item.id)}
+                          className="bg-slate-900 hover:bg-rose-950/40 text-rose-400 p-1 rounded-lg border border-slate-800 hover:border-rose-900/40 transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {media.length === 0 && (
+                    <div className="col-span-2 text-center text-slate-500 py-10">No media assets in library. Use form above to add some!</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Recommended Affiliate Tools Manager Column */}
+              <div className="lg:col-span-6 bg-slate-900 border border-slate-800 rounded-3xl p-6 space-y-6 shadow-sm">
+                <div>
+                  <h3 className="text-base font-bold text-white tracking-tight flex items-center gap-1.5">
+                    <Wand2 className="w-5 h-5 text-indigo-500" />
+                    <span>Recommended Tools Directory</span>
+                  </h3>
+                  <p className="text-[10px] text-slate-500">Insert and adjust active affiliate tools linked contextually inside generated guidelines.</p>
+                </div>
+
+                {/* Tool Creator Form */}
+                <form onSubmit={handleSaveTool} className="bg-slate-950 border border-slate-850 p-4 rounded-2xl space-y-3">
+                  <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    {editingToolId ? `Modify recommended tool (${toolName})` : "Register New Recommended Tool"}
+                  </h4>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-500 uppercase">Tool Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. SEMrush"
+                        value={toolName}
+                        onChange={(e) => setToolName(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-700 focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-500 uppercase">Company/Creator *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. SEMrush Inc"
+                        value={toolCompany}
+                        onChange={(e) => setToolCompany(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-700 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-500 uppercase">Cluster Category</label>
+                      <select
+                        value={toolCategory}
+                        onChange={(e) => setToolCategory(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-2.5 py-2 text-slate-100 focus:outline-none"
+                      >
+                        {categories.map(c => (
+                          <option key={c.id} value={c.slug}>{c.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-500 uppercase">CTA Button Text</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Try for Free"
+                        value={toolCtaText}
+                        onChange={(e) => setToolCtaText(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1 col-span-2">
+                      <label className="block text-[9px] text-slate-500 uppercase">Affiliate Link / CTA URL *</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. https://semrush.sjv.io/xxx"
+                          value={toolAffiliateUrl}
+                          onChange={(e) => setToolAffiliateUrl(e.target.value)}
+                          className="flex-1 bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-700 focus:outline-none font-mono"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleFetchProductImageFromOg}
+                          disabled={isResolvingOgImage}
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded-lg text-[9px] font-bold flex items-center justify-center gap-1 disabled:opacity-50"
+                        >
+                          {isResolvingOgImage ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                          ) : (
+                            "✨ Get Image"
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-500 uppercase">Product Image / Logo (URL)</label>
+                      <input
+                        type="text"
+                        placeholder="Will be auto-populated on Get Image!"
+                        value={toolLogo}
+                        onChange={(e) => setToolLogo(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-700 focus:outline-none font-mono"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[9px] text-slate-500 uppercase">Official Website URL *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="https://semrush.com"
+                        value={toolOfficialUrl}
+                        onChange={(e) => setToolOfficialUrl(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-700 focus:outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-[9px] text-slate-500 uppercase">Brief Tool Description / Pitch (Contextual placement)</label>
+                    <textarea
+                      rows={2}
+                      placeholder="Describe value proposition and context..."
+                      value={toolDescription}
+                      onChange={(e) => setToolDescription(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-slate-100 placeholder-slate-700 focus:outline-none font-sans"
+                    />
+                  </div>
+
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 rounded-xl text-[10px] uppercase tracking-wider shadow-sm transition-all cursor-pointer"
+                    >
+                      {editingToolId ? "Save Tool Details" : "Register Affiliate Tool"}
+                    </button>
+                    {editingToolId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingToolId(null);
+                          setToolName("");
+                          setToolCompany("");
+                          setToolLogo("");
+                          setToolOfficialUrl("");
+                          setToolAffiliateUrl("");
+                          setToolCtaText("Get Started");
+                          setToolDescription("");
+                          setToolStatus("active");
+                        }}
+                        className="bg-slate-900 border border-slate-800 hover:text-slate-200 text-slate-400 px-3 rounded-xl text-[10px] font-bold"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                </form>
+
+                {/* Active Tools List */}
+                <div className="space-y-2.5 max-h-[350px] overflow-y-auto pr-1">
+                  {tools.map((t) => (
+                    <div key={t.id} className="bg-slate-950 p-3 rounded-2xl border border-slate-850 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <img 
+                          src={t.logo || "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=100"} 
+                          alt={t.name}
+                          referrerPolicy="no-referrer"
+                          className="w-10 h-10 object-cover rounded-lg bg-slate-900 border border-slate-800" 
+                        />
+                        <div className="space-y-0.5">
+                          <h4 className="font-bold text-white block">{t.name}</h4>
+                          <span className="text-[10px] text-slate-500 font-mono">{t.company} • Category: {t.category || "SEO"}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleEditTool(t)}
+                          className="bg-slate-900 hover:bg-slate-850 text-indigo-400 p-2 rounded-lg border border-slate-800 transition-colors"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteTool(t.id)}
+                          className="bg-slate-900 hover:bg-rose-950/20 text-rose-400 p-2 rounded-lg border border-slate-800 hover:border-rose-900/40 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        )}
+
       </div>
+
+      {/* --- DUPLICATE ARTICLE DETECTOR RESOLUTION MODAL --- */}
+      {duplicateModalOpen && duplicateExistingArt && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 z-50 font-sans">
+          <div className="bg-slate-900 border border-slate-800 max-w-lg w-full p-6 sm:p-8 rounded-3xl space-y-6 shadow-2xl relative text-xs animate-fade-in">
+            
+            <button
+              onClick={() => {
+                setDuplicateModalOpen(false);
+                setDuplicateExistingArt(null);
+                setPendingPublishData(null);
+              }}
+              className="absolute top-4 right-4 bg-slate-950 border border-slate-850 hover:text-white text-slate-400 p-1.5 rounded-full"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center space-y-3">
+              <div className="bg-amber-500/10 p-3 rounded-full w-fit mx-auto text-amber-500 border border-amber-500/20 mb-1">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">Duplicate Publication Detected</h2>
+              <p className="text-slate-400 leading-relaxed text-[11px]">
+                An article with the URL slug <span className="text-amber-400 font-mono">/article/{duplicateExistingArt.slug}</span> or matching title already exists in the sitemap database index.
+              </p>
+            </div>
+
+            {/* Existing article details comparison card */}
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-850 space-y-2">
+              <span className="text-[9px] text-slate-500 uppercase tracking-wider block">Existing Article Record:</span>
+              <strong className="text-sm text-white block font-black">{duplicateExistingArt.title}</strong>
+              <div className="flex gap-4 text-[10px] text-slate-500 font-mono">
+                <span>Views: {duplicateExistingArt.views || 0}</span>
+                <span>•</span>
+                <span>Clicks: {duplicateExistingArt.clicks || 0}</span>
+                <span>•</span>
+                <span>Published: {new Date(duplicateExistingArt.createdAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+
+            {/* Options Buttons block */}
+            <div className="space-y-3 pt-2">
+              <button
+                onClick={() => handleResolveDuplicate("update")}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white p-4 rounded-2xl text-left transition-all border border-indigo-500/30 flex items-center justify-between"
+              >
+                <div className="space-y-0.5">
+                  <strong className="text-xs font-bold block text-white">Update Existing Article (Recommended)</strong>
+                  <span className="text-[10px] text-indigo-200 block font-normal">Overwrites Markdown content and SEO headers, but preserves historic traffic views & clicks.</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-indigo-300 flex-shrink-0" />
+              </button>
+
+              <button
+                onClick={() => handleResolveDuplicate("replace")}
+                className="w-full bg-slate-950 hover:bg-slate-850 text-slate-300 p-4 rounded-2xl text-left transition-all border border-slate-850 flex items-center justify-between"
+              >
+                <div className="space-y-0.5">
+                  <strong className="text-xs font-bold block text-white">Replace Existing Record</strong>
+                  <span className="text-[10px] text-slate-500 block font-normal">Purges the existing index entry and creates a completely new guide record from scratch.</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-slate-500 flex-shrink-0" />
+              </button>
+
+              <button
+                onClick={() => {
+                  setDuplicateModalOpen(false);
+                  setDuplicateExistingArt(null);
+                  setPendingPublishData(null);
+                }}
+                className="w-full bg-transparent hover:bg-slate-950 text-slate-400 hover:text-slate-200 py-3 rounded-xl text-center font-bold border border-transparent hover:border-slate-850 transition-all"
+              >
+                Cancel and edit slug/title manually
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

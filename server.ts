@@ -209,7 +209,16 @@ app.post("/api/admin/login", (req, res) => {
 
 // Categories
 app.get("/api/categories", (req, res) => {
-  res.json(db.categories);
+  const all = req.query.all === "true";
+  if (all) {
+    return res.json(db.categories);
+  }
+  // Hide empty categories for visitors (categories with 0 published articles)
+  const publishedArticles = db.articles.filter(a => a.status === "published");
+  const filtered = db.categories.filter(cat => 
+    publishedArticles.some(art => art.category === cat.slug)
+  );
+  res.json(filtered);
 });
 
 app.post("/api/categories", requireAdminAuth, (req, res) => {
@@ -346,7 +355,16 @@ app.get("/api/articles", (req, res) => {
   }
   if (search) {
     const term = String(search).toLowerCase();
-    list = list.filter(a => a.title.toLowerCase().includes(term) || a.content.toLowerCase().includes(term) || (a.primaryKeyword && a.primaryKeyword.toLowerCase().includes(term)));
+    list = list.filter(a => 
+      a.title.toLowerCase().includes(term) || 
+      a.content.toLowerCase().includes(term) || 
+      (a.excerpt && a.excerpt.toLowerCase().includes(term)) ||
+      (a.metaDescription && a.metaDescription.toLowerCase().includes(term)) ||
+      (a.primaryKeyword && a.primaryKeyword.toLowerCase().includes(term)) ||
+      (a.secondaryKeywords && a.secondaryKeywords.some((k: string) => k.toLowerCase().includes(term))) ||
+      (a.tags && a.tags.some((t: string) => t.toLowerCase().includes(term))) ||
+      (a.category && a.category.toLowerCase().includes(term))
+    );
   }
 
   // Sort newest first
@@ -371,7 +389,33 @@ app.get("/api/articles/:slug", (req, res) => {
   // Find related articles (same category, different slug)
   const related = db.articles.filter(a => a.category === article.category && a.slug !== article.slug && a.status === "published").slice(0, 3);
 
-  res.json({ article, relatedTools: articleTools, relatedArticles: related });
+  // Find previous and next articles from published list sorted by createdAt newest first
+  const published = db.articles.filter(a => a.status === "published");
+  published.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  
+  const currIdx = published.findIndex(a => a.id === article.id);
+  let previousArticle = null;
+  let nextArticle = null;
+  
+  if (currIdx >= 0) {
+    // Newest is at index 0, oldest is at index published.length - 1
+    // So "next" (newer) would be at currIdx - 1
+    // "previous" (older) would be at currIdx + 1
+    if (currIdx > 0) {
+      nextArticle = {
+        title: published[currIdx - 1].title,
+        slug: published[currIdx - 1].slug
+      };
+    }
+    if (currIdx < published.length - 1) {
+      previousArticle = {
+        title: published[currIdx + 1].title,
+        slug: published[currIdx + 1].slug
+      };
+    }
+  }
+
+  res.json({ article, relatedTools: articleTools, relatedArticles: related, previousArticle, nextArticle });
 });
 
 // Publish/Edit Article
@@ -468,6 +512,65 @@ app.delete("/api/articles/:id", requireAdminAuth, (req, res) => {
   }
   saveDatabase();
   res.json({ success: true });
+});
+
+// Resolve OpenGraph Image from Affiliate URL
+app.post("/api/resolve-og-image", async (req, res) => {
+  const { url } = req.body;
+  if (!url) {
+    return res.status(400).json({ error: "URL is required" });
+  }
+
+  try {
+    // 1. Fetch URL
+    const response = await fetch(url, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch URL. Status code: ${response.status}`);
+    }
+
+    const html = await response.text();
+
+    // 2. Extract OpenGraph image using Regex
+    let ogImage = "";
+    
+    const ogImageRegex = /<meta\s+[^>]*property=["']og:image["']\s+[^>]*content=["']([^"']+)["']/i;
+    const ogImageRegexAlt = /<meta\s+[^>]*content=["']([^"']+)["']\s+[^>]*property=["']og:image["']/i;
+    const twitterImageRegex = /<meta\s+[^>]*name=["']twitter:image["']\s+[^>]*content=["']([^"']+)["']/i;
+
+    const match = html.match(ogImageRegex) || html.match(ogImageRegexAlt) || html.match(twitterImageRegex);
+
+    if (match && match[1]) {
+      ogImage = match[1];
+    }
+
+    if (!ogImage) {
+      // Fallback: look for any high-quality image in the body
+      const imgRegex = /<img\s+[^>]*src=["']([^"']+\.(?:png|jpg|jpeg|webp|svg))["']/i;
+      const imgMatch = html.match(imgRegex);
+      if (imgMatch && imgMatch[1]) {
+        let src = imgMatch[1];
+        if (src.startsWith("/")) {
+          const parsedUrl = new URL(url);
+          src = `${parsedUrl.origin}${src}`;
+        }
+        ogImage = src;
+      }
+    }
+
+    if (ogImage) {
+      res.json({ success: true, imageUrl: ogImage });
+    } else {
+      res.json({ success: false, error: "No OpenGraph image or standard image found in HTML metadata." });
+    }
+  } catch (err: any) {
+    console.error("Failed to extract OpenGraph image for:", url, err.message);
+    res.json({ success: false, error: err.message || "Failed to resolve URL metadata" });
+  }
 });
 
 // --- AI ARTICLE SEARCH & GROUNDING ---

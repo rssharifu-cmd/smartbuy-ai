@@ -62,9 +62,10 @@ export const Home: React.FC = () => {
     }
   };
 
-  // Split into Featured (1st) and Latest (rest)
-  const featuredArticle = articles.length > 0 ? articles[0] : null;
-  const latestArticles = articles.length > 1 ? articles.slice(1) : [];
+  // Sort articles by createdAt descending to ensure newest first
+  const sortedArticles = [...articles].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const featuredArticle = sortedArticles.length > 0 ? sortedArticles[0] : null;
+  const latestArticles = sortedArticles.length > 1 ? sortedArticles.slice(1) : [];
 
   return (
     <div className="min-h-screen">
