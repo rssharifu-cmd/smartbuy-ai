@@ -207,6 +207,22 @@ app.post("/api/admin/login", (req, res) => {
   }
 });
 
+// Admin Change Password
+app.post("/api/admin/change-password", (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  const adminPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
+  if (currentPassword === adminPassword) {
+    if (!newPassword || newPassword.trim().length < 4) {
+      return res.status(400).json({ error: "New administrative security key must be at least 4 characters." });
+    }
+    db.settings.adminPassword = newPassword.trim();
+    saveDatabase();
+    res.json({ success: true, message: "Administrative security key updated successfully!" });
+  } else {
+    res.status(401).json({ error: "Verification failed. The current security key is incorrect." });
+  }
+});
+
 // Categories
 app.get("/api/categories", (req, res) => {
   const all = req.query.all === "true";

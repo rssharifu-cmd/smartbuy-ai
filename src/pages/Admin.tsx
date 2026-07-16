@@ -35,7 +35,8 @@ import {
   BarChart3,
   Copy,
   X,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Key
 } from "lucide-react";
 import { Article, Category, SiteSettings, AffiliateTool, AIVisibilitySuggestion, InternalLinkOpportunity, AIVisibilityMetrics } from "../types.ts";
 
@@ -43,6 +44,14 @@ export const Admin: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState<string | null>(null);
+
+  // Administrative security key update states
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState<string | null>(null);
 
   // Core CMS state
   const [articles, setArticles] = useState<Article[]>([]);
@@ -212,6 +221,48 @@ export const Admin: React.FC = () => {
       }
     } catch {
       setLoginError("Failed to communicate with authentication gate.");
+    }
+  };
+
+  const handleChangePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordError(null);
+    setChangePasswordSuccess(null);
+
+    if (newPassword !== confirmNewPassword) {
+      setChangePasswordError("New security keys do not match.");
+      return;
+    }
+
+    if (newPassword.trim().length < 4) {
+      setChangePasswordError("New security key must be at least 4 characters.");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/admin/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentPassword: currentPassword.trim(),
+          newPassword: newPassword.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setChangePasswordSuccess(data.message || "Security key successfully updated!");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmNewPassword("");
+        setTimeout(() => {
+          setIsChangingPassword(false);
+          setChangePasswordSuccess(null);
+        }, 2000);
+      } else {
+        setChangePasswordError(data.error || "Failed to update security key.");
+      }
+    } catch {
+      setChangePasswordError("Network connection issue.");
     }
   };
 
@@ -826,46 +877,144 @@ export const Admin: React.FC = () => {
     return (
       <div className="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center px-4 py-20 font-sans">
         <div className="max-w-md w-full bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl space-y-6">
-          <div className="text-center">
-            <div className="bg-indigo-600 p-3 rounded-full w-fit mx-auto text-white shadow-lg shadow-indigo-600/20 mb-4 animate-bounce">
-              <Lock className="w-6 h-6" />
-            </div>
-            <h1 className="text-2xl font-black text-white tracking-tight">Administrative CMS</h1>
-            <p className="text-xs text-slate-400 mt-1 leading-relaxed">
-              Verify security keys to review platform matrices, trigger deep topic research, publish expert analyses, or customize headers.
-            </p>
-          </div>
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Security Key</label>
-              <input
-                type="password"
-                required
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-700 focus:outline-none transition-all"
-              />
-              <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
-                Default key is <span className="text-indigo-400 font-mono font-bold">admin123</span> if not overwritten in deployment environments.
-              </p>
-            </div>
-
-            {loginError && (
-              <div className="bg-rose-950/40 border border-rose-900/50 p-3.5 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
-                <span>{loginError}</span>
+          {!isChangingPassword ? (
+            <>
+              <div className="text-center">
+                <div className="bg-indigo-600 p-3 rounded-full w-fit mx-auto text-white shadow-lg shadow-indigo-600/20 mb-4 animate-bounce">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <h1 className="text-2xl font-black text-white tracking-tight">Administrative CMS</h1>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Verify security keys to review platform matrices, trigger deep topic research, publish expert analyses, or customize headers.
+                </p>
               </div>
-            )}
 
-            <button
-              type="submit"
-              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-indigo-600/10 cursor-pointer"
-            >
-              Authenticate & Open CMS
-            </button>
-          </form>
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Security Key</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-700 focus:outline-none transition-all"
+                  />
+                  <p className="text-[10px] text-slate-500 mt-2 leading-relaxed flex items-center justify-between">
+                    <span>Default key is <span className="text-indigo-400 font-mono font-bold">admin123</span></span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsChangingPassword(true);
+                        setLoginError(null);
+                      }}
+                      className="text-indigo-400 hover:text-indigo-300 font-bold hover:underline transition-colors focus:outline-none cursor-pointer"
+                    >
+                      Change Key?
+                    </button>
+                  </p>
+                </div>
+
+                {loginError && (
+                  <div className="bg-rose-950/40 border border-rose-900/50 p-3.5 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                    <span>{loginError}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-indigo-600/10 cursor-pointer"
+                >
+                  Authenticate & Open CMS
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <div className="text-center">
+                <div className="bg-indigo-600 p-3 rounded-full w-fit mx-auto text-white shadow-lg shadow-indigo-600/20 mb-4">
+                  <Key className="w-6 h-6" />
+                </div>
+                <h1 className="text-2xl font-black text-white tracking-tight">Change Security Key</h1>
+                <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                  Update your administrative security credentials. This will update the key stored in local persistence settings.
+                </p>
+              </div>
+
+              <form onSubmit={handleChangePasswordSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Current Security Key</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="••••••••••••"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-700 focus:outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">New Security Key</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Min 4 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-700 focus:outline-none transition-all"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Confirm New Security Key</label>
+                  <input
+                    type="password"
+                    required
+                    placeholder="Min 4 characters"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-700 focus:outline-none transition-all"
+                  />
+                </div>
+
+                {changePasswordError && (
+                  <div className="bg-rose-950/40 border border-rose-900/50 p-3.5 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                    <span>{changePasswordError}</span>
+                  </div>
+                )}
+
+                {changePasswordSuccess && (
+                  <div className="bg-emerald-950/40 border border-emerald-900/50 p-3.5 rounded-xl text-xs text-emerald-400 font-medium flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                    <span>{changePasswordSuccess}</span>
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsChangingPassword(false);
+                      setChangePasswordError(null);
+                      setChangePasswordSuccess(null);
+                    }}
+                    className="flex-1 bg-slate-950 hover:bg-slate-850 text-slate-300 font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all border border-slate-800 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-indigo-600/10 cursor-pointer"
+                  >
+                    Save Key
+                  </button>
+                </div>
+              </form>
+            </>
+          )}
         </div>
       </div>
     );
