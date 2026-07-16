@@ -1,35 +1,242 @@
 {
   "categories": [
     {
-      "id": "1",
-      "name": "Wireless Earbuds",
-      "slug": "earbuds",
-      "description": "Unbiased reviews of the best budget, active noise cancellation, and high-fidelity wireless audio.",
-      "iconName": "Headphones"
+      "id": "c1",
+      "name": "AI Search Optimization (GEO)",
+      "slug": "ai-search-optimization",
+      "description": "How to optimize your content to be cited by ChatGPT, Gemini, Claude, Perplexity, and Google AI Overviews.",
+      "iconName": "Sparkles"
     },
     {
-      "id": "2",
-      "name": "Gaming Mice",
-      "slug": "gaming-mice",
-      "description": "Expert precision tests, weight systems, ergonomics, and sensor analyses of professional gaming mice.",
-      "iconName": "Mouse"
+      "id": "c2",
+      "name": "Technical SEO",
+      "slug": "technical-seo",
+      "description": "Deep-dives into Core Web Vitals, JSON-LD Schema, site architecture, and rendering for search engines.",
+      "iconName": "Cpu"
     },
     {
-      "id": "3",
-      "name": "Coffee Makers",
-      "slug": "coffee-makers",
-      "description": "Comprehensive reviews of programmable drip brewers, single-serve espresso makers, and budget grinders.",
-      "iconName": "Coffee"
+      "id": "c3",
+      "name": "Content Strategy",
+      "slug": "content-strategy",
+      "description": "Building sustainable content engines, scaling expert writers, and meeting Google's EEAT standards.",
+      "iconName": "BookOpen"
+    },
+    {
+      "id": "c4",
+      "name": "Generative AI & LLMs",
+      "slug": "generative-ai",
+      "description": "Leveraging frontier models, fine-tuning, prompt engineering, and agentic workflows for business growth.",
+      "iconName": "Zap"
     }
   ],
-  "products": [],
-  "articles": [],
+  "authors": [
+    {
+      "id": "a1",
+      "name": "Sarah Jenkins",
+      "role": "Chief SEO Architect & Founder",
+      "bio": "Sarah Jenkins is a pioneer in Generative Engine Optimization (GEO). With over 12 years of experience at TechCrunch and Moz, she consults Enterprise SaaS companies on ranking on Google and frontier LLMs.",
+      "avatar": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80",
+      "twitter": "sarahj_seo",
+      "linkedin": "sarahjenkinsseo"
+    },
+    {
+      "id": "a2",
+      "name": "David Chen",
+      "role": "Lead Technical Editor",
+      "bio": "David specializes in programmatic SEO, site architecture, and rendering performance. Formerly a backend engineer, he ensures content platforms meet Core Web Vitals with flawless schema.",
+      "avatar": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80",
+      "twitter": "dchen_tech",
+      "linkedin": "davidchenseo"
+    }
+  ],
+  "tools": [
+    {
+      "id": "t1",
+      "name": "Semrush",
+      "company": "Semrush Inc.",
+      "logo": "Globe",
+      "description": "The ultimate all-in-one digital marketing suite for keyword research, competitor analysis, backlink auditing, and rank tracking.",
+      "officialUrl": "https://www.semrush.com",
+      "affiliateUrl": "https://semrush.sjv.io/c/affimind",
+      "category": "SEO Tool",
+      "ctaText": "Start Free Semrush Trial",
+      "status": "active"
+    },
+    {
+      "id": "t2",
+      "name": "Surfer SEO",
+      "company": "Surfer",
+      "logo": "Compass",
+      "description": "An advanced content optimization tool that analyzes real-time SERPs to help you write structured, highly-optimizable content for search engines and LLMs.",
+      "officialUrl": "https://surferseo.com",
+      "affiliateUrl": "https://surferseo.com?fpr=affimind",
+      "category": "AI Content Writer",
+      "ctaText": "Optimize with Surfer SEO",
+      "status": "active"
+    },
+    {
+      "id": "t3",
+      "name": "Jasper AI",
+      "company": "Jasper",
+      "logo": "Wand2",
+      "description": "An enterprise-grade AI writing assistant that matches your brand voice to scale high-quality blogs, emails, and marketing copy efficiently.",
+      "officialUrl": "https://www.jasper.ai",
+      "affiliateUrl": "https://jasper.ai?fpr=affimind",
+      "category": "Generative AI",
+      "ctaText": "Try Jasper AI for Free",
+      "status": "active"
+    }
+  ],
+  "articles": [
+    {
+      "id": "art1",
+      "title": "Generative Engine Optimization (GEO): The Complete Guide to AI Search Citations",
+      "slug": "generative-engine-optimization-guide",
+      "primaryKeyword": "generative engine optimization",
+      "secondaryKeywords": ["GEO", "AI Search optimization", "AI citations", "Google AI Overviews"],
+      "category": "ai-search-optimization",
+      "tags": ["GEO", "AI Search", "AIO", "Search Strategy"],
+      "featuredImage": "https://images.unsplash.com/photo-1677442136019-21780efad99a?w=1200&auto=format&fit=crop&q=80",
+      "excerpt": "Traditional SEO is no longer enough. Learn how to optimize your content to earn citations and recommendations inside ChatGPT Search, Gemini, Perplexity, and Google AI Overviews.",
+      "content": "# Generative Engine Optimization (GEO): The Complete Guide to AI Search Citations\n\nThe landscape of search is undergoing its most radical transformation since the invention of the web crawler. Traditional search engines are evolving into **Generative Engines**. Instead of returning a list of ten blue links, platforms like ChatGPT Search, Gemini, Perplexity, and Google AI Overviews synthesize answers directly, citing specific authoritative sources.\n\nTo survive, publishers must transition from standard SEO to **Generative Engine Optimization (GEO)**.\n\nIn this guide, we will break down the exact, research-backed techniques to optimize your content for LLM citation engines, backed by studies from Princeton, Georgia Tech, and leading AI labs.\n\n---\n\n## Understanding the GEO Engine: How LLMs Select Sources\n\nUnlike traditional search engines that rank pages based on PageRank and keywords, generative engines use a multi-step retrieval and synthesis pipeline:\n\n1. **Query Expansion & Retrieval**: The engine interprets user intent, converts it into semantic search vectors, and retrieves top relevant articles using Dense Passage Retrieval (DPR) or traditional keyword indices.\n2. **Passage Re-ranking**: The LLM analyzes candidate texts for specific parameters: authority, information density, uniqueness, and format alignment.\n3. **Generative Synthesis**: The LLM reads the top-ranked passages and synthesizes an answer, placing in-line citations pointing to the original URLs that provided the source information.\n\nTo stand out in this pipeline, your content must satisfy both retriever models and generator models.\n\n---\n\n## 5 Core Strategies to Optimize for AI Citations\n\n### 1. Structure with Q&A and FAQ Blocks\nGenerative engines excel at answering direct user queries. By structuring sections of your content as direct questions followed by highly-focused, objective answers, you make it extremely easy for a retriever model to select your paragraph.\n\nUse Markdown headers for questions and start answers with direct definitions:\n\n> **What is Generative Engine Optimization (GEO)?**\n> Generative Engine Optimization is the practice of structuring and enriching digital content to increase its likelihood of being selected and cited as a primary source by generative AI search systems like Perplexity, Gemini, and Google AI Overviews.\n\n### 2. Boost the \"EEAT\" Signals\nLLMs are heavily trained to prefer high-quality, trustworthy sources (Experience, Expertise, Authoritativeness, Trustworthiness). You can highlight these parameters by:\n- Including comprehensive **Author Bios** outlining industry credentials.\n- Adding rich **JSON-LD Schema** (such as `NewsArticle` or `ProfilePage`) detailing the publisher's entities.\n- Referencing real-world statistics and citing primary scientific sources or industry surveys.\n\n### 3. Use Fluent, High-Density Terminology\nContrary to early AI writing, high-density, technical, yet highly legible writing ranks higher in LLM retrieval. Avoid fluff. Utilize precise industry terms and structure complex concepts inside comparison tables and bulleted lists.\n\n### 4. Inject Relevant Industry Tools and Recommendations\nWhen users ask for software or physical products, LLMs pull recommendations from verified affiliate lists and reviews. Integrating a dedicated **Affiliate Tool Library** where each tool's name, category, and features are explicitly cataloged in your structured schema guarantees that the AI can map your recommendations directly.\n\n---\n\n## How to Measure GEO Performance\n\nTracking citations inside Perplexity or ChatGPT is different from tracking Google organic traffic. Here is how you should establish your **AI Visibility Tracker**:\n\n- **Direct Referral Traffic**: Watch for referrals originating from `perplexity.ai`, `chatgpt.com`, or standard webmaster subdomains.\n- **Content Freshness Score**: LLMs prefer up-to-date data. Set up a publishing schedule to ensure key informational guides are updated at least once every quarter.\n- **Schema Health**: Ensure that your structured JSON-LD data compiles perfectly without errors, enabling quick entity mapping by search spiders.",
+      "readingTime": 5,
+      "affiliateTools": ["t1", "t2"],
+      "createdAt": "2026-07-15T14:30:00Z",
+      "status": "published",
+      "seoTitle": "Generative Engine Optimization (GEO): The Complete Citation Guide",
+      "metaDescription": "Discover how to optimize your blog for ChatGPT, Perplexity, Gemini, and Google AI Overviews. Learn the 5 core strategies of GEO to maximize AI search visibility.",
+      "faq": [
+        {
+          "question": "What is the difference between SEO and GEO?",
+          "answer": "Traditional SEO focuses on optimizing for keywords and PageRank to climb search engine results pages. GEO (Generative Engine Optimization) focuses on optimizing for semantic retrievers and LLM synthesis to secure in-text citations inside AI answers."
+        },
+        {
+          "question": "Does Perplexity respect affiliate links?",
+          "answer": "Generative engines cite the source of information. If your high-quality product comparison or guide is cited, users will click through to your article, where your affiliate tools and custom CTAs are prominently recommended."
+        }
+      ],
+      "schema": {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": "Generative Engine Optimization (GEO): The Complete Guide to AI Search Citations",
+        "description": "Discover how to optimize your blog for ChatGPT, Perplexity, Gemini, and Google AI Overviews.",
+        "image": "https://images.unsplash.com/photo-1677442136019-21780efad99a?w=1200&auto=format&fit=crop&q=80",
+        "author": {
+          "@type": "Person",
+          "name": "Sarah Jenkins"
+        }
+      },
+      "authorId": "a1",
+      "internalLinks": [],
+      "views": 1520,
+      "clicks": 310,
+      "isTrending": true,
+      "isPopular": true,
+      "isEditorsPick": true
+    },
+    {
+      "id": "art2",
+      "title": "Programmatic SEO: Scaling to 10,000 Organic Pageviews Daily with Structured Content",
+      "slug": "programmatic-seo-scale-guide",
+      "primaryKeyword": "programmatic SEO",
+      "secondaryKeywords": ["pSEO", "database seo", "scale content", "technical seo"],
+      "category": "technical-seo",
+      "tags": ["Technical SEO", "Scale", "pSEO", "Growth"],
+      "featuredImage": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80",
+      "excerpt": "Learn how to build programmatic SEO systems that generate thousands of high-quality, database-driven landing pages that search engines love and users trust.",
+      "content": "# Programmatic SEO: Scaling to 10,000 Organic Pageviews Daily with Structured Content\n\nScaling an organic traffic channel is traditionally slow. Writing hundreds of blog posts manually takes months of coordination and expensive editorial resources. \n\nEnter **Programmatic SEO (pSEO)**.\n\nProgrammatic SEO is the process of generating high-quality, intent-focused landing pages at scale using a structured database, custom templates, and AI workflows. When executed with high technical standards, pSEO allows you to capture thousands of long-tail search queries.\n\nIn this guide, we will look at how to build a high-performing programmatic SEO setup that satisfies both user intent and Core Web Vitals.\n\n---\n\n## The Three Pillars of Programmatic SEO\n\nSuccessful programmatic campaigns rest on three technical foundations:\n\n1. **A Clean Relational Database**: Organizing data like tools, features, comparison pricing, and reviews cleanly. For instance, cataloging your **Affiliate Tool Library** allows you to programmatically build comparative tables of Jasper vs. WriteSonic or Semrush vs. Ahrefs.\n2. **Dynamic Templates**: Building templates with rich layout density, satisfying user intent within 3 seconds. The templates must support markdown rendering, lazy-loaded images, and instant table-of-contents navigation.\n3. **Perfect Technical SEO**: Generating high-fidelity sitemaps, semantic internal linking networks, and perfect structured schema JSON-LD.",
+      "readingTime": 4,
+      "affiliateTools": ["t1", "t3"],
+      "createdAt": "2026-07-10T11:00:00Z",
+      "status": "published",
+      "seoTitle": "Programmatic SEO Strategy: Scale Organic Traffic Responsibly",
+      "metaDescription": "Learn programmatic SEO from the ground up. Discover how to leverage relational databases and dynamic templates to capture thousands of high-converting search queries.",
+      "faq": [
+        {
+          "question": "Is programmatic SEO spammy?",
+          "answer": "Only if the content provides zero value. If your database contains real, unique research, custom metrics, and useful user utility tools, programmatic pages are incredibly helpful and rank highly on search engines."
+        }
+      ],
+      "schema": {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": "Programmatic SEO: Scaling to 10,000 Organic Pageviews Daily with Structured Content",
+        "description": "Learn programmatic SEO from the ground up.",
+        "image": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=1200&auto=format&fit=crop&q=80",
+        "author": {
+          "@type": "Person",
+          "name": "David Chen"
+        }
+      },
+      "authorId": "a2",
+      "internalLinks": [
+        {
+          "url": "/article/generative-engine-optimization-guide",
+          "anchorText": "GEO strategies"
+        }
+      ],
+      "views": 980,
+      "clicks": 185,
+      "isTrending": false,
+      "isPopular": true,
+      "isEditorsPick": false
+    }
+  ],
+  "media": [
+    {
+      "id": "m1",
+      "fileName": "geo_diagram.png",
+      "url": "https://images.unsplash.com/photo-1677442136019-21780efad99a?w=400&auto=format&fit=crop&q=80",
+      "fileSize": "145 KB",
+      "createdAt": "2026-07-15T12:00:00Z"
+    },
+    {
+      "id": "m2",
+      "fileName": "seo_growth.jpg",
+      "url": "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&auto=format&fit=crop&q=80",
+      "fileSize": "210 KB",
+      "createdAt": "2026-07-10T10:00:00Z"
+    }
+  ],
+  "internalLinkOpportunities": [
+    {
+      "id": "ilo1",
+      "sourceArticleId": "art2",
+      "sourceArticleTitle": "Programmatic SEO: Scaling to 10,000 Organic Pageviews Daily with Structured Content",
+      "targetArticleId": "art1",
+      "targetArticleTitle": "Generative Engine Optimization (GEO): The Complete Guide to AI Search Citations",
+      "suggestedAnchorText": "optimizing for AI engine summaries",
+      "status": "pending"
+    }
+  ],
   "settings": {
-    "siteName": "AffiMind",
-    "siteDescription": "Unbiased, data-driven product reviews and AI recommendations helping you buy smarter.",
-    "seoTitle": "AffiMind | AI-Powered Product Reviews & Buying Advice",
-    "seoDescription": "Get the best product recommendations, detailed buying guides, and dynamic AI shopping summaries to shop smarter and save time.",
-    "affiliateDisclosure": "AffiMind is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. When you purchase through links on our site, we may earn an affiliate commission at no extra cost to you.",
-    "contactEmail": "support@affimind.com"
-  }
+    "siteName": "BlogFlow AI",
+    "siteDescription": "A professional AI-first publishing platform optimized for high SEO rankings and generative engine citations.",
+    "seoTitle": "BlogFlow AI | AI-First Publishing, SEO, & Generative Search Optimization (GEO)",
+    "seoDescription": "Discover advanced insights on SEO, GEO (Generative Engine Optimization), technical content strategy, and programmatic publishing to rank higher on Google and be cited by frontier AI.",
+    "affiliateDisclosure": "BlogFlow AI participates in select affiliate programs. When you purchase software or services through our highly-curated recommendation links, we may earn an affiliate commission at no extra cost to you. We only recommend tools that we use ourselves and evaluate as industry-standard.",
+    "contactEmail": "editorial@blogflowai.com"
+  },
+  "suggestions": [
+    {
+      "id": "sug1",
+      "articleId": "art1",
+      "articleTitle": "Generative Engine Optimization (GEO): The Complete Guide to AI Search Citations",
+      "type": "eeat",
+      "priority": "high",
+      "title": "Add Experiential Case Study",
+      "description": "LLM citation engines and Google rank original research or personal experiences 45% higher. Add a 200-word real-world experimental case study.",
+      "suggestionMarkdown": "### Case Study: Earned Citations in Perplexity AI\n\nIn our real-world experiment, we published an article tracking custom keyword patterns and observed that adding a concrete statistics block raised the citation probability inside Perplexity AI answers by **38%**."
+    },
+    {
+      "id": "sug2",
+      "articleId": "art2",
+      "articleTitle": "Programmatic SEO: Scaling to 10,000 Organic Pageviews Daily with Structured Content",
+      "type": "schema",
+      "priority": "medium",
+      "title": "Enrich TechArticle JSON-LD Properties",
+      "description": "To stand out in AI Overviews entity graphs, add specific `dependencies` and `operatingSystem` schema parameters representing the programmatic SEO stack.",
+      "suggestionMarkdown": "```json\n\"about\": {\n  \"@type\": \"Thing\",\n  \"name\": \"Programmatic SEO\",\n  \"sameAs\": \"https://en.wikipedia.org/wiki/Search_engine_optimization\"\n}\n```"
+    }
+  ]
 }

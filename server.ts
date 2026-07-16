@@ -15,52 +15,56 @@ dotenv.config();
 const app = express();
 const PORT = 3000;
 
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "15mb" }));
 
 // --- DATABASE STATE & LOCAL PERSISTENCE ---
 const DB_FILE = path.join(process.cwd(), "db.json");
 
-// Default Pre-seeded categories
-const defaultCategories = [
-  { id: "1", name: "Wireless Earbuds", slug: "earbuds", description: "Unbiased reviews of the best budget, active noise cancellation, and high-fidelity wireless audio.", iconName: "Headphones" },
-  { id: "2", name: "Gaming Mice", slug: "gaming-mice", description: "Expert precision tests, weight systems, ergonomics, and sensor analyses of professional gaming mice.", iconName: "Mouse" },
-  { id: "3", name: "Coffee Makers", slug: "coffee-makers", description: "Comprehensive reviews of programmable drip brewers, single-serve espresso makers, and budget grinders.", iconName: "Coffee" }
-];
-
-// Default Pre-seeded products (cleared of demo content)
-const defaultProducts = [];
-
-// Default Pre-seeded articles (cleared of demo content)
-const defaultArticles = [];
-
-// Default Pre-seeded settings
-const defaultSettings = {
-  siteName: "AffiMind",
-  siteDescription: "Unbiased, data-driven product reviews and AI recommendations helping you buy smarter.",
-  seoTitle: "AffiMind | AI-Powered Product Reviews & Buying Advice",
-  seoDescription: "Get the best product recommendations, detailed buying guides, and dynamic AI shopping summaries to shop smarter and save time.",
-  affiliateDisclosure: "AffiMind is a participant in the Amazon Services LLC Associates Program, an affiliate advertising program designed to provide a means for sites to earn advertising fees by advertising and linking to Amazon.com. When you purchase through links on our site, we may earn an affiliate commission at no extra cost to you.",
-  contactEmail: "support@affimind.com"
+// Default Fallback Database Structure
+const initialDbTemplate = {
+  categories: [],
+  authors: [],
+  tools: [],
+  articles: [],
+  media: [],
+  internalLinkOpportunities: [],
+  settings: {
+    siteName: "BlogFlow AI",
+    siteDescription: "A professional AI-first publishing platform optimized for high SEO rankings and generative engine citations.",
+    seoTitle: "BlogFlow AI | AI-First Publishing, SEO, & Generative Search Optimization (GEO)",
+    seoDescription: "Discover advanced insights on SEO, GEO, technical content strategy, and programmatic publishing to rank on Google and frontier LLMs.",
+    affiliateDisclosure: "BlogFlow AI participates in select affiliate programs. When you purchase software or services through our links, we may earn an affiliate commission at no extra cost to you.",
+    contactEmail: "editorial@blogflowai.com"
+  },
+  suggestions: []
 };
 
-// Initialize DB file if it does not exist
 let db: {
   categories: any[];
-  products: any[];
+  authors: any[];
+  tools: any[];
   articles: any[];
+  media: any[];
+  internalLinkOpportunities: any[];
   settings: any;
-} = {
-  categories: defaultCategories,
-  products: defaultProducts,
-  articles: defaultArticles,
-  settings: defaultSettings
-};
+  suggestions: any[];
+} = { ...initialDbTemplate };
 
 function loadDatabase() {
   try {
     if (fs.existsSync(DB_FILE)) {
       const data = fs.readFileSync(DB_FILE, "utf-8");
-      db = JSON.parse(data);
+      const parsed = JSON.parse(data);
+      db = {
+        categories: parsed.categories || [],
+        authors: parsed.authors || [],
+        tools: parsed.tools || [],
+        articles: parsed.articles || [],
+        media: parsed.media || [],
+        internalLinkOpportunities: parsed.internalLinkOpportunities || [],
+        settings: parsed.settings || initialDbTemplate.settings,
+        suggestions: parsed.suggestions || []
+      };
     } else {
       fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2), "utf-8");
     }
@@ -85,7 +89,7 @@ function getGemini(): GoogleGenAI {
   if (!aiClient) {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is required to use AI Shopping recommendations.");
+      throw new Error("GEMINI_API_KEY is required to power the AI Writer and Research tools.");
     }
     aiClient = new GoogleGenAI({
       apiKey,
@@ -100,7 +104,7 @@ function getGemini(): GoogleGenAI {
 }
 
 /**
- * Safely parses and cleans up Gemini error messages for user presentation.
+ * Safely parses and cleans up Gemini error messages.
  */
 function cleanErrorMessage(err: any): string {
   if (!err) return "An unknown error occurred.";
@@ -112,26 +116,13 @@ function cleanErrorMessage(err: any): string {
       if (parsed.error && parsed.error.message) {
         return parsed.error.message;
       }
-      if (parsed.message) {
-        return parsed.message;
-      }
     }
-  } catch {
-    // Fall through
-  }
-
-  if (msg.includes("503") || msg.toLowerCase().includes("unavailable") || msg.toLowerCase().includes("demand")) {
-    return "The AI generation service is currently experiencing extremely high demand. Please try again in a few seconds.";
-  }
-  if (msg.includes("429") || msg.toLowerCase().includes("rate limit") || msg.toLowerCase().includes("quota")) {
-    return "Rate limit or quota exceeded. Please wait a moment before trying again.";
-  }
-
+  } catch {}
   return msg;
 }
 
 /**
- * Runs a Gemini API generation with up to 3 automatic retries and automatic fallback to gemini-3.1-flash-lite
+ * Runs a Gemini API generation with up to 3 automatic retries and fallback
  */
 async function generateContentWithRetryAndFallback(params: { contents: any; config?: any; }) {
   const ai = getGemini();
@@ -149,71 +140,54 @@ async function generateContentWithRetryAndFallback(params: { contents: any; conf
       return response;
     } catch (err: any) {
       attempt++;
-      console.warn(`Gemini call failed (attempt ${attempt}/${maxAttempts}) using gemini-3.5-flash:`, err.message || err);
-      
-      const errMsg = String(err.message || err).toLowerCase();
-      const isTemporaryError = 
-        errMsg.includes("demand") || 
-        errMsg.includes("unavailable") || 
-        errMsg.includes("503") || 
-        errMsg.includes("limit") || 
-        errMsg.includes("429") ||
-        errMsg.includes("timeout") ||
-        errMsg.includes("fetch failed");
-
+      console.warn(`Gemini call failed (attempt ${attempt}/${maxAttempts}):`, err.message || err);
       if (attempt >= maxAttempts) {
-        if (isTemporaryError) {
-          console.warn("Retries exhausted for gemini-3.5-flash. Falling back to stable gemini-3.1-flash-lite...");
-          try {
-            const response = await ai.models.generateContent({
-              model: "gemini-3.1-flash-lite",
-              contents: params.contents,
-              config: params.config,
-            });
-            return response;
-          } catch (fallbackErr: any) {
-            console.error("Fallback model gemini-3.1-flash-lite also failed:", fallbackErr.message || fallbackErr);
-            throw fallbackErr;
-          }
+        console.warn("Retries exhausted. Attempting fallback to gemini-3.1-flash-lite...");
+        try {
+          const response = await ai.models.generateContent({
+            model: "gemini-3.1-flash-lite",
+            contents: params.contents,
+            config: params.config,
+          });
+          return response;
+        } catch (fallbackErr: any) {
+          console.error("Fallback model also failed:", fallbackErr.message || fallbackErr);
+          throw fallbackErr;
         }
-        throw err;
       }
-
       await new Promise(resolve => setTimeout(resolve, delay));
-      delay *= 1.5; // Backoff
+      delay *= 1.5;
     }
   }
 }
 
-// --- API ENDPOINTS ---
-
-// Admin Authentication Middleware
+// --- ADMIN AUTH MIDDLEWARE ---
 function requireAdminAuth(req: express.Request, res: express.Response, next: express.NextFunction) {
   const authHeader = req.headers.authorization;
   const adminPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
-  
   if (!authHeader || authHeader !== `Bearer ${adminPassword}`) {
     return res.status(403).json({ error: "403 Unauthorized: Administrative credentials required." });
   }
   next();
 }
 
-// GET site settings
+// --- API ENDPOINTS ---
+
+// Site Settings
 app.get("/api/settings", (req, res) => {
   res.json(db.settings);
 });
 
-// POST site settings (Admin only)
 app.post("/api/settings", requireAdminAuth, (req, res) => {
   const { siteName, siteDescription, seoTitle, seoDescription, affiliateDisclosure, contactEmail, adminPassword } = req.body;
   db.settings = {
     ...db.settings,
-    siteName,
-    siteDescription,
-    seoTitle,
-    seoDescription,
-    affiliateDisclosure,
-    contactEmail
+    siteName: siteName || db.settings.siteName,
+    siteDescription: siteDescription || db.settings.siteDescription,
+    seoTitle: seoTitle || db.settings.seoTitle,
+    seoDescription: seoDescription || db.settings.seoDescription,
+    affiliateDisclosure: affiliateDisclosure || db.settings.affiliateDisclosure,
+    contactEmail: contactEmail || db.settings.contactEmail
   };
   if (adminPassword) {
     db.settings.adminPassword = adminPassword.trim();
@@ -222,123 +196,149 @@ app.post("/api/settings", requireAdminAuth, (req, res) => {
   res.json({ success: true, settings: db.settings });
 });
 
-// GET categories
+// Admin Login
+app.post("/api/admin/login", (req, res) => {
+  const { password } = req.body;
+  const adminPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
+  if (password === adminPassword) {
+    res.json({ success: true, token: adminPassword });
+  } else {
+    res.status(401).json({ error: "Invalid administrative password credentials." });
+  }
+});
+
+// Categories
 app.get("/api/categories", (req, res) => {
   res.json(db.categories);
 });
 
-// POST category
 app.post("/api/categories", requireAdminAuth, (req, res) => {
   const { name, slug, description, iconName } = req.body;
   if (!name || !slug) {
-    return res.status(400).json({ error: "Name and Slug are required" });
+    return res.status(400).json({ error: "Name and Slug are required." });
   }
+  const existingIdx = db.categories.findIndex(c => c.slug === slug);
   const newCat = {
-    id: `c_${Date.now()}`,
+    id: existingIdx >= 0 ? db.categories[existingIdx].id : `c_${Date.now()}`,
     name,
     slug,
     description: description || "",
     iconName: iconName || "Tag"
   };
-  db.categories.push(newCat);
+  if (existingIdx >= 0) {
+    db.categories[existingIdx] = newCat;
+  } else {
+    db.categories.push(newCat);
+  }
   saveDatabase();
   res.json({ success: true, category: newCat });
 });
 
-// GET products
-app.get("/api/products", (req, res) => {
-  const { category, featured, search } = req.query;
-  let list = [...db.products];
-
-  if (category) {
-    list = list.filter(p => p.category === category);
-  }
-  if (featured === "true") {
-    list = list.filter(p => p.featured);
-  }
-  if (search) {
-    const term = String(search).toLowerCase();
-    list = list.filter(p => p.title.toLowerCase().includes(term) || p.content.toLowerCase().includes(term) || p.category.toLowerCase().includes(term));
-  }
-
-  // Sort newest first
-  list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-
-  res.json(list);
+// Authors
+app.get("/api/authors", (req, res) => {
+  res.json(db.authors);
 });
 
-// GET specific product by slug
-app.get("/api/products/:slug", (req, res) => {
-  const product = db.products.find(p => p.slug === req.params.slug);
-  if (!product) {
-    return res.status(404).json({ error: "Product not found" });
+app.post("/api/authors", requireAdminAuth, (req, res) => {
+  const { name, role, bio, avatar, twitter, linkedin } = req.body;
+  if (!name || !role) {
+    return res.status(400).json({ error: "Name and Role are required." });
   }
-
-  // Find related products (same category, different slug)
-  const related = db.products.filter(p => p.category === product.category && p.slug !== product.slug).slice(0, 3);
-  // Find related articles (same category)
-  const articles = db.articles.filter(a => a.category === product.category).slice(0, 3);
-
-  res.json({ product, related, relatedArticles: articles });
+  const newAuthor = {
+    id: `a_${Date.now()}`,
+    name,
+    role,
+    bio: bio || "",
+    avatar: avatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150",
+    twitter: twitter || "",
+    linkedin: linkedin || ""
+  };
+  db.authors.push(newAuthor);
+  saveDatabase();
+  res.json({ success: true, author: newAuthor });
 });
 
-// POST product (Admin only)
-app.post("/api/products", requireAdminAuth, (req, res) => {
-  const { title, slug, category, content, image, affiliateLink, price, rating, pros, cons, specs, faq, buyingAdvice, alternatives, featured } = req.body;
-  
-  if (!title || !slug || !category) {
-    return res.status(400).json({ error: "Title, slug, and category are required" });
+// Affiliate Tool Library
+app.get("/api/tools", (req, res) => {
+  res.json(db.tools);
+});
+
+app.post("/api/tools", requireAdminAuth, (req, res) => {
+  const { id, name, company, logo, description, officialUrl, affiliateUrl, category, ctaText, status } = req.body;
+  if (!name || !company || !officialUrl) {
+    return res.status(400).json({ error: "Name, Company, and Official URL are required." });
   }
 
-  const existingIndex = db.products.findIndex(p => p.slug === slug);
-  const newProduct = {
-    id: `p_${Date.now()}`,
-    title,
-    slug,
-    category,
-    content: content || "",
-    image: image || "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=600",
-    affiliateLink: affiliateLink || "",
-    price: price || "$0.00",
-    rating: Number(rating) || 4.0,
-    pros: Array.isArray(pros) ? pros : [],
-    cons: Array.isArray(cons) ? cons : [],
-    specs: specs || {},
-    faq: Array.isArray(faq) ? faq : [],
-    buyingAdvice: buyingAdvice || "",
-    alternatives: Array.isArray(alternatives) ? alternatives : [],
-    featured: !!featured,
-    createdAt: new Date().toISOString()
+  const newTool = {
+    id: id || `t_${Date.now()}`,
+    name,
+    company,
+    logo: logo || "Link",
+    description: description || "",
+    officialUrl,
+    affiliateUrl: affiliateUrl || officialUrl,
+    category: category || "SEO",
+    ctaText: ctaText || "Get Started",
+    status: status || "active"
   };
 
-  if (existingIndex >= 0) {
-    db.products[existingIndex] = { ...db.products[existingIndex], ...newProduct, id: db.products[existingIndex].id };
+  const existingIdx = db.tools.findIndex(t => t.id === newTool.id);
+  if (existingIdx >= 0) {
+    db.tools[existingIdx] = newTool;
   } else {
-    db.products.push(newProduct);
+    db.tools.push(newTool);
   }
-
   saveDatabase();
-  res.json({ success: true, product: newProduct });
+  res.json({ success: true, tool: newTool });
 });
 
-// DELETE product (Admin only)
-app.delete("/api/products/:id", requireAdminAuth, (req, res) => {
-  const initialLen = db.products.length;
-  db.products = db.products.filter(p => p.id !== req.params.id);
-  if (db.products.length === initialLen) {
-    return res.status(404).json({ error: "Product not found" });
+app.delete("/api/tools/:id", requireAdminAuth, (req, res) => {
+  const initialLen = db.tools.length;
+  db.tools = db.tools.filter(t => t.id !== req.params.id);
+  if (db.tools.length === initialLen) {
+    return res.status(404).json({ error: "Tool not found" });
   }
   saveDatabase();
   res.json({ success: true });
 });
 
-// GET articles
+// Media Library
+app.get("/api/media", (req, res) => {
+  res.json(db.media);
+});
+
+app.post("/api/media", requireAdminAuth, (req, res) => {
+  const { fileName, url, fileSize } = req.body;
+  if (!fileName || !url) {
+    return res.status(400).json({ error: "FileName and URL are required." });
+  }
+  const newMedia = {
+    id: `m_${Date.now()}`,
+    fileName,
+    url,
+    fileSize: fileSize || "120 KB",
+    createdAt: new Date().toISOString()
+  };
+  db.media.push(newMedia);
+  saveDatabase();
+  res.json({ success: true, mediaItem: newMedia });
+});
+
+app.delete("/api/media/:id", requireAdminAuth, (req, res) => {
+  db.media = db.media.filter(m => m.id !== req.params.id);
+  saveDatabase();
+  res.json({ success: true });
+});
+
+// Articles
 app.get("/api/articles", (req, res) => {
-  const { category, search, all } = req.query;
+  const { category, search, all, status } = req.query;
   let list = [...db.articles];
 
   if (all !== "true") {
-    list = list.filter(a => !a.status || a.status === "published");
+    list = list.filter(a => a.status === "published");
+  } else if (status) {
+    list = list.filter(a => a.status === status);
   }
 
   if (category) {
@@ -346,31 +346,120 @@ app.get("/api/articles", (req, res) => {
   }
   if (search) {
     const term = String(search).toLowerCase();
-    list = list.filter(a => a.title.toLowerCase().includes(term) || a.content.toLowerCase().includes(term));
+    list = list.filter(a => a.title.toLowerCase().includes(term) || a.content.toLowerCase().includes(term) || (a.primaryKeyword && a.primaryKeyword.toLowerCase().includes(term)));
   }
 
   // Sort newest first
   list.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-
   res.json(list);
 });
 
-// GET specific article by slug
+// Specific article
 app.get("/api/articles/:slug", (req, res) => {
   const article = db.articles.find(a => a.slug === req.params.slug);
   if (!article) {
     return res.status(404).json({ error: "Article not found" });
   }
 
-  // Find related products (same category)
-  const relatedProducts = db.products.filter(p => p.category === article.category).slice(0, 3);
-  // Find other articles (same category, different slug)
-  const relatedArticles = db.articles.filter(a => a.category === article.category && a.slug !== article.slug && (!a.status || a.status === "published")).slice(0, 3);
+  // Track page views
+  article.views = (article.views || 0) + 1;
+  saveDatabase();
 
-  res.json({ article, relatedProducts, relatedArticles });
+  // Find recommended tools that are referenced in this article
+  const articleTools = db.tools.filter(t => article.affiliateTools?.includes(t.id));
+
+  // Find related articles (same category, different slug)
+  const related = db.articles.filter(a => a.category === article.category && a.slug !== article.slug && a.status === "published").slice(0, 3);
+
+  res.json({ article, relatedTools: articleTools, relatedArticles: related });
 });
 
-// DELETE article (Admin only)
+// Publish/Edit Article
+app.post("/api/publish", requireAdminAuth, (req, res) => {
+  const {
+    id,
+    title,
+    slug,
+    primaryKeyword,
+    secondaryKeywords,
+    category,
+    tags,
+    featuredImage,
+    excerpt,
+    content,
+    readingTime,
+    affiliateTools,
+    status,
+    seoTitle,
+    metaDescription,
+    faq,
+    schema,
+    authorId,
+    internalLinks,
+    researchReport,
+    publishDate
+  } = req.body;
+
+  if (!title || !slug || !category || !content) {
+    return res.status(400).json({ error: "Title, slug, category, and content are required." });
+  }
+
+  const cleanSlug = slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const existingIndex = db.articles.findIndex(a => a.slug === cleanSlug || (id && a.id === id));
+
+  const finalArticle = {
+    id: id || (existingIndex >= 0 ? db.articles[existingIndex].id : `art_${Date.now()}`),
+    title,
+    slug: cleanSlug,
+    primaryKeyword: primaryKeyword || "",
+    secondaryKeywords: Array.isArray(secondaryKeywords) ? secondaryKeywords : [],
+    category,
+    tags: Array.isArray(tags) ? tags : [],
+    featuredImage: featuredImage || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600",
+    excerpt: excerpt || "",
+    content,
+    readingTime: Number(readingTime) || Math.max(1, Math.ceil(content.split(/\s+/).length / 220)),
+    affiliateTools: Array.isArray(affiliateTools) ? affiliateTools : [],
+    status: status || "published",
+    publishDate: publishDate || undefined,
+    createdAt: existingIndex >= 0 ? db.articles[existingIndex].createdAt : new Date().toISOString(),
+    seoTitle: seoTitle || `${title} | BlogFlow AI`,
+    metaDescription: metaDescription || excerpt || "",
+    faq: Array.isArray(faq) ? faq : [],
+    schema: schema || {},
+    authorId: authorId || "a1",
+    internalLinks: Array.isArray(internalLinks) ? internalLinks : [],
+    researchReport: researchReport || "",
+    views: existingIndex >= 0 ? (db.articles[existingIndex].views || 0) : 0,
+    clicks: existingIndex >= 0 ? (db.articles[existingIndex].clicks || 0) : 0,
+    isTrending: existingIndex >= 0 ? db.articles[existingIndex].isTrending : false,
+    isPopular: existingIndex >= 0 ? db.articles[existingIndex].isPopular : false,
+    isEditorsPick: existingIndex >= 0 ? db.articles[existingIndex].isEditorsPick : false
+  };
+
+  if (existingIndex >= 0) {
+    db.articles[existingIndex] = finalArticle;
+  } else {
+    db.articles.push(finalArticle);
+  }
+
+  saveDatabase();
+  res.json({ success: true, article: finalArticle });
+});
+
+// Click Analytics Tracker
+app.post("/api/articles/track-click", (req, res) => {
+  const { slug } = req.body;
+  if (!slug) return res.status(400).json({ error: "Slug is required" });
+  const article = db.articles.find(a => a.slug === slug);
+  if (article) {
+    article.clicks = (article.clicks || 0) + 1;
+    saveDatabase();
+  }
+  res.json({ success: true });
+});
+
+// Delete Article
 app.delete("/api/articles/:id", requireAdminAuth, (req, res) => {
   const initialLen = db.articles.length;
   db.articles = db.articles.filter(a => a.id !== req.params.id);
@@ -381,131 +470,56 @@ app.delete("/api/articles/:id", requireAdminAuth, (req, res) => {
   res.json({ success: true });
 });
 
-// --- SECURE REST API ENDPOINT: POST /api/publish ---
-// This endpoint receives article metadata and content to support headless publishing workflows
-app.post("/api/publish", requireAdminAuth, (req, res) => {
-  const { title, slug, category, content, metaTitle, metaDescription, faq, schema, image, affiliateLink, status } = req.body;
-  
-  if (!title || !slug || !category || !content) {
-    return res.status(400).json({ error: "Missing required fields: title, slug, category, and content are required." });
-  }
-
-  const existingIndex = db.articles.findIndex(a => a.slug === slug);
-  
-  const parsedFaq = Array.isArray(faq) ? faq : [];
-  let parsedSchema = {};
-  if (schema) {
-    try {
-      parsedSchema = typeof schema === "string" ? JSON.parse(schema) : schema;
-    } catch {
-      parsedSchema = {};
-    }
-  }
-
-  const validStatuses = ["published", "draft", "scheduled"];
-  const articleStatus = validStatuses.includes(status) ? status : "published";
-
-  const newArticle = {
-    id: `a_${Date.now()}`,
-    title,
-    slug,
-    category,
-    content,
-    metaTitle: metaTitle || `${title} | AffiMind`,
-    metaDescription: metaDescription || content.substring(0, 150).replace(/[#*`]/g, "") + "...",
-    faq: parsedFaq,
-    schema: parsedSchema,
-    image: image || "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600",
-    affiliateLink: affiliateLink || "",
-    status: articleStatus,
-    createdAt: new Date().toISOString()
-  };
-
-  if (existingIndex >= 0) {
-    db.articles[existingIndex] = { ...db.articles[existingIndex], ...newArticle, id: db.articles[existingIndex].id };
-  } else {
-    db.articles.push(newArticle);
-  }
-
-  saveDatabase();
-  res.status(201).json({ success: true, article: newArticle });
-});
-
-// --- ADMIN LOGIN ---
-app.post("/api/admin/login", (req, res) => {
-  const { password } = req.body;
-  const correctPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
-  if (password === correctPassword) {
-    res.json({ success: true, token: correctPassword });
-  } else {
-    res.status(401).json({ error: "Incorrect administrator password" });
-  }
-});
-
-// --- ADMIN PASSWORD RESET / SET NEW ONE ---
-app.post("/api/admin/reset-password", (req, res) => {
-  const { password } = req.body;
-  if (!password || password.trim().length < 4) {
-    return res.status(400).json({ error: "Password must be at least 4 characters long." });
-  }
-
-  const currentPassword = db.settings.adminPassword;
-  if (currentPassword) {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || authHeader !== `Bearer ${currentPassword}`) {
-      return res.status(403).json({ error: "403 Unauthorized: Administrative authorization required to reset password." });
-    }
-  }
-
-  db.settings = {
-    ...db.settings,
-    adminPassword: password.trim()
-  };
-  saveDatabase();
-  res.json({ success: true, token: password.trim() });
-});
-
-// --- AI RECOMMENDATION SEARCH SYSTEM ---
-// Fully grounded using Gemini models via `@google/genai`
+// --- AI ARTICLE SEARCH & GROUNDING ---
 app.post("/api/ai/search", async (req, res) => {
   const { query } = req.body;
   if (!query) {
-    return res.status(400).json({ error: "A search query is required." });
+    return res.status(400).json({ error: "Search query is required." });
   }
 
   try {
-    const ai = getGemini();
+    const term = query.toLowerCase();
+    const published = db.articles.filter(a => a.status === "published");
+    
+    // Search database for matching articles
+    const matchedArticles = published.filter(a => 
+      a.title.toLowerCase().includes(term) || 
+      a.content.toLowerCase().includes(term) || 
+      (a.primaryKeyword && a.primaryKeyword.toLowerCase().includes(term)) ||
+      (a.category && a.category.toLowerCase().includes(term))
+    ).slice(0, 3);
 
-    // Compile relevant background knowledge about our existing product catalogue to ground the generation
-    const catalogString = db.products.map(p => `Product Name: "${p.title}"\nSlug: "${p.slug}"\nCategory: "${p.category}"\nPrice: "${p.price}"\nPros: ${p.pros.join(", ")}\nCons: ${p.cons.join(", ")}\nSpecs: ${JSON.stringify(p.specs)}\nBuying Advice: "${p.buyingAdvice}"`).join("\n\n---\n\n");
+    // Get active recommended tools
+    const matchedTools = db.tools.filter(t => 
+      t.status === "active" && 
+      (t.name.toLowerCase().includes(term) || t.category.toLowerCase().includes(term) || t.description.toLowerCase().includes(term))
+    ).slice(0, 2);
 
-    const systemPrompt = `You are the core search-grounding engine of "AffiMind", a premium, data-driven product recommendation platform.
-Your objective is to review our available product catalog and provide high-quality, comprehensive AI buying recommendations based on the user's shopping query (e.g., "Best earbuds under $50", "Best gaming mouse", etc.).
+    const articlesCtx = matchedArticles.map(a => `Title: "${a.title}", Excerpt: "${a.excerpt}", Content Snippet: "${a.content.substring(0, 1000)}"`).join("\n---\n");
+    const toolsCtx = matchedTools.map(t => `Tool: "${t.name}" (${t.company}), Category: "${t.category}", Description: "${t.description}"`).join("\n---\n");
 
-Here is our active product database catalog:
-${catalogString}
+    const systemPrompt = `You are an elite SEO strategist and senior technical editor.
+Your mission is to write a highly authoritative, grounded search report for the query: "${query}".
 
-Answer the user's query with structured content that strictly follows the requested schema.
-- Map the query to the best-matching products in our catalog using their exact 'slug' strings (in the recommendedProductSlugs array).
-- Generate a beautiful, expert-level AI Summary analyzing the query, highlighting what factors matter most (e.g. active noise cancellation, optical sensors, brew capacity).
-- Enlist bulleted Pros and Cons for this product category.
-- List Key Features users should evaluate.
-- Formulate practical Buying Advice.
+Here is the context of verified articles in our database:
+${articlesCtx || "No specific database articles found. Speak generally about this topic based on expert knowledge."}
 
-Your response MUST be a single, valid JSON object that exactly satisfies this structure:
+Here are verified software tools in our library:
+${toolsCtx || "No specific library tools found."}
+
+You MUST respond with a single, valid JSON object matching this structure EXACTLY:
 {
-  "aiSummary": "Provide an elegant, comprehensive summary answering the user's search query.",
-  "pros": ["Pro point 1", "Pro point 2", "Pro point 3"],
-  "cons": ["Con point 1", "Con point 2"],
-  "features": ["Important Feature 1", "Important Feature 2", "Important Feature 3"],
-  "buyingAdvice": "Provide professional expert-level buying recommendations specifically tuned to the user's budget and requirements.",
-  "recommendedProductSlugs": ["slug-of-matching-product-1", "slug-of-matching-product-2"]
+  "aiSummary": "A highly sophisticated 2-3 paragraph summary answering the search query based on the articles context.",
+  "pros": ["Strength 1 related to query", "Strength 2 related to query"],
+  "cons": ["Limitation or challenge 1 related to query", "Limitation or challenge 2 related to query"],
+  "features": ["Key criteria to evaluate 1", "Key criteria to evaluate 2"],
+  "buyingAdvice": "Expert technical counsel outlining action steps or solutions for the reader."
 }
 
-Ensure the output can be parsed easily. Select ONLY relevant product slugs that actually exist in our catalog list above. Do NOT invent new slugs.`;
+Do not include any quotes, markdown formatting, or text outside of the JSON. Return only raw JSON.`;
 
     const response = await generateContentWithRetryAndFallback({
-      contents: `Search Query: "${query}"`,
+      contents: `Generate search report for: "${query}"`,
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
@@ -516,154 +530,206 @@ Ensure the output can be parsed easily. Select ONLY relevant product slugs that 
             pros: { type: Type.ARRAY, items: { type: Type.STRING } },
             cons: { type: Type.ARRAY, items: { type: Type.STRING } },
             features: { type: Type.ARRAY, items: { type: Type.STRING } },
-            buyingAdvice: { type: Type.STRING },
-            recommendedProductSlugs: { type: Type.ARRAY, items: { type: Type.STRING } }
+            buyingAdvice: { type: Type.STRING }
           },
-          required: ["aiSummary", "pros", "cons", "features", "buyingAdvice", "recommendedProductSlugs"]
+          required: ["aiSummary", "pros", "cons", "features", "buyingAdvice"]
         }
       }
     });
 
-    const resultText = response.text || "{}";
-    const data = JSON.parse(resultText);
+    const parsedData = JSON.parse(response.text || "{}");
+    res.json({
+      aiSummary: parsedData.aiSummary,
+      pros: parsedData.pros,
+      cons: parsedData.cons,
+      features: parsedData.features,
+      buyingAdvice: parsedData.buyingAdvice,
+      articles: matchedArticles,
+      tools: matchedTools
+    });
 
-    // Map matched slugs to full product objects
-    const recommendations = db.products.filter(p => data.recommendedProductSlugs.includes(p.slug));
-
-    // Fallback: if no matching slugs returned, find anything in the same category
-    if (recommendations.length === 0) {
-      const lowerQuery = query.toLowerCase();
-      let matchedCategory = "";
-      if (lowerQuery.includes("earbud") || lowerQuery.includes("headphone") || lowerQuery.includes("audio")) {
-        matchedCategory = "earbuds";
-      } else if (lowerQuery.includes("mouse") || lowerQuery.includes("gaming")) {
-        matchedCategory = "gaming-mice";
-      } else if (lowerQuery.includes("coffee") || lowerQuery.includes("maker") || lowerQuery.includes("brew")) {
-        matchedCategory = "coffee-makers";
-      }
-
-      if (matchedCategory) {
-        data.recommendations = db.products.filter(p => p.category === matchedCategory);
-      } else {
-        data.recommendations = db.products.slice(0, 2);
-      }
-    } else {
-      data.recommendations = recommendations;
-    }
-
-    res.json(data);
   } catch (err: any) {
-    console.error("Gemini AI Search failure:", err);
-    // Provide a detailed graceful local fallback matching our seeded data in case of key limits
-    const lowerQuery = query.toLowerCase();
-    let fallbackData = {
-      aiSummary: "We analysed the best options for your request. Based on pricing, driver structures, tracking sensors, and durability, here is our expert selection.",
-      pros: ["Exceptional value-for-money compared to premium brands", "Standard warranties with physical sweat/water-resistance", "Tailored ergonomics perfect for prolonged usage"],
-      cons: ["May lack ultra-premium smartphone ecosystem synchronization", "Slightly heavier structures in mechanical models"],
-      features: ["Custom EQ profiling & ANC controls", "Sensor tracking consistency (DPI & IPS rates)", "Warming plate adjustments and programmable brewing timers"],
-      buyingAdvice: "Evaluate whether space or batch sizes matter most for appliances. For peripheral gaming mice, select by your primary grip size (palm vs claw).",
-      recommendations: db.products.slice(0, 2)
-    };
-
-    if (lowerQuery.includes("earbud") || lowerQuery.includes("earbuds") || lowerQuery.includes("headphone") || lowerQuery.includes("under $50") || lowerQuery.includes("under 50")) {
-      fallbackData.aiSummary = "For under $50, wireless audio has improved dramatically. Active noise cancellation (ANC) and high-quality graphene drivers are now available at extremely consumer-friendly price points, providing punchy bass profiles without acoustic mud.";
-      fallbackData.pros = ["Incredible active noise cancellation models available under $50", "High-capacity cases providing over 30+ hours of cumulative play", "Custom companion app equalizers to match audio preferences"];
-      fallbackData.cons = ["No wireless charging capabilities at this price tier", "Wind-noise reduction during calls can suffer occasionally"];
-      fallbackData.features = ["Driver composite materials (Graphene vs PET)", "Waterproof verification (IPX4 splash-proof vs IPX5 sweat-proof)", "Touch-sensor layout flexibility"];
-      fallbackData.buyingAdvice = "If you commute, prioritize a model with hybrid Active Noise Cancellation like the Soundcore Life P3i. If you want maximum reliability, portability, and are on a rock-bottom budget, choose the JLab Go Air Pop.";
-      fallbackData.recommendations = db.products.filter(p => p.category === "earbuds");
-    } else if (lowerQuery.includes("mouse") || lowerQuery.includes("mice") || lowerQuery.includes("gaming")) {
-      fallbackData.aiSummary = "Choosing a gaming mouse is a direct balance of hand-grip comfort and optical tracking precision. Sub-micron tracking sensors ensure split-second movements translate instantly, while tactile buttons offer robust click feedbacks.";
-      fallbackData.pros = ["HERO precision optical sensors with sub-micron acceleration tracking", "Durable mechanical clicks rated for tens of millions of key-strokes", "Weight balancing arrays to adjust slide consistency"];
-      fallbackData.cons = ["Wired systems introduce drag if not paired with a cable bungee", "Larger ergonomic silhouettes are less suitable for smaller hands"];
-      fallbackData.features = ["IPS speed tracking and acceleration tolerance", "Onboard memory profiles saving macros directly", "Hyper-fast custom mechanical scroll dual-modes"];
-      fallbackData.buyingAdvice = "If you bind several spells/macros or want weight adjustments, the Logitech G502 HERO remains the ultimate heavy tactical mouse. For pure ergonomic wrist relief on a budget, the Razer DeathAdder Essential is an unmatched ergonomic value.";
-      fallbackData.recommendations = db.products.filter(p => p.category === "gaming-mice");
-    } else if (lowerQuery.includes("coffee") || lowerQuery.includes("maker") || lowerQuery.includes("brew") || lowerQuery.includes("maker")) {
-      fallbackData.aiSummary = "The coffee maker market divides cleanly between single-serve pod machines that deliver rapid, convenient cups and larger drip-brewers tailored for brewing high-volume carafes with customizable heating variables.";
-      fallbackData.pros = ["Programmable brew delay timers up to 24 hours", "Removable water containers for convenient tap refills", "Flexible volume thresholds (6oz up to 12-cup carafes)"];
-      fallbackData.cons = ["Pod units require continuous cup refills and generate pod waste", "Drip systems take up more space and require coffee paper filters"];
-      fallbackData.features = ["Adjustable hotplates to prevent carafe burning", "Batch size custom optimization (e.g., Ninja 1-4 cup option)", "Rapid heating element thermal performance"];
-      fallbackData.buyingAdvice = "For students or single professionals, the ultra-narrow Keurig K-Mini fits any counter space seamlessly. For families, multi-cup drinkers, and scheduled mornings, the programmable Ninja CE251 is our absolute top recommendation.";
-      fallbackData.recommendations = db.products.filter(p => p.category === "coffee-makers");
-    }
-
-    res.json(fallbackData);
+    console.error("AI Search compilation failed:", err);
+    res.json({
+      aiSummary: `To optimize content for "${query}", search architects must prioritize high-fidelity research, clean semantic entities, and clear, structured schemas. Our index contains several articles focusing on content structures, search engine crawlers, and LLM visibility guidelines.`,
+      pros: ["Builds high-integrity EEAT criteria", "Positions brand for LLM Overview citations"],
+      cons: ["Requires deep technical implementation", "Rankings depend heavily on freshness indexes"],
+      features: ["Semantic schema structures", "Verified author credentials"],
+      buyingAdvice: "Explore our detailed research streams to understand how to design and publish citable content for the LLM era.",
+      articles: db.articles.filter(a => a.status === "published").slice(0, 2),
+      tools: db.tools.filter(t => t.status === "active").slice(0, 1)
+    });
   }
 });
 
-// --- AI ARTICLE GENERATION ENGINE ---
-// Grounded in current product data and structured with SEO metatags using Gemini
-app.post("/api/ai/generate-article", async (req, res) => {
-  const { keyword, category, focusProducts } = req.body;
-  if (!keyword || !category) {
-    return res.status(400).json({ error: "Keyword and category slug are required to generate an article." });
+// --- AI WRITER: STEP 1: RESEARCH ENDPOINT ---
+app.post("/api/writer/research", async (req, res) => {
+  const { keyword, categoryId } = req.body;
+  if (!keyword) {
+    return res.status(400).json({ error: "Keyword parameter is required." });
   }
 
   try {
     const ai = getGemini();
 
-    // Compile background knowledge about matched products
-    let productsContext = "";
-    const filteredProducts = db.products.filter(p => p.category === category);
-    
-    let selectedForContext = filteredProducts;
-    if (Array.isArray(focusProducts) && focusProducts.length > 0) {
-      selectedForContext = filteredProducts.filter(p => focusProducts.includes(p.slug));
-    }
-    
-    if (selectedForContext.length === 0) {
-      selectedForContext = filteredProducts.slice(0, 3);
-    }
+    // Compile tool list for recommendations
+    const toolsListStr = db.tools.map(t => `- Name: "${t.name}" (ID: "${t.id}"), Company: "${t.company}", Category: "${t.category}", Decription: "${t.description}"`).join("\n");
 
-    productsContext = selectedForContext.map(p => {
-      return `Product Title: "${p.title}"
-Slug: "${p.slug}"
-Price: "${p.price}"
-Rating: "${p.rating}"
-Pros: ${p.pros.join(", ")}
-Cons: ${p.cons.join(", ")}
-Specs: ${JSON.stringify(p.specs)}
-Buying Advice: "${p.buyingAdvice}"
-Affiliate Link: "${p.affiliateLink}"`;
-    }).join("\n\n---\n\n");
+    const systemPrompt = `You are a world-class SEO strategist, competitor analyst, and content research architect.
+Your task is to conduct highly detailed competitor, user intent, and informational gap analysis for the keyword: "${keyword}".
 
-    const systemPrompt = `You are a high-performing professional Affiliate Content Writer, Product Tester, and SEO Specialist at "AffiMind".
-Your mission is to generate a comprehensive, highly citable, informative, and expert-level affiliate guide or article about: "${keyword}".
+We have a catalog of active Affiliate Tools in our Tool Library:
+${toolsListStr}
 
-The article should fit under category slug: "${category}".
+Use your web search grounding tool to analyze actual ranking competitors, understand search intent, identify gaps, find "People Also Ask" questions, and build a comprehensive article outline.
 
-The generated article content MUST:
-1. Be written in elegant, high-EEAT professional markdown.
-2. Feature, analyze, and compare the following specific products (make sure to integrate their price, specs, and pros/cons natively in the review body):
-${productsContext}
-3. Provide an intuitive comparison table comparing specs and pricing.
-4. Supply a clear summary of critical buying advice.
-5. Contain zero fluff or placeholder markers. Focus entirely on direct, factual analysis that LLM search engines can easily attribute and index.
-
-You MUST respond with a single, valid, parseable JSON object matching this structure:
+You MUST respond with a single, valid JSON object matching this structure EXACTLY:
 {
-  "title": "A highly catchy, click-worthy, SEO-optimized title",
-  "slug": "url-slug-version-of-title-all-lowercase-with-dashes",
-  "metaTitle": "SEO Meta Title (max 65 chars)",
-  "metaDescription": "SEO Meta Description (max 160 chars)",
-  "content": "Full rich markdown content of the article",
+  "searchIntent": "Detailed explanation of whether intent is informational, transactional, or commercial investigate, and how to satisfy it.",
+  "competitors": "Brief analysis of what top results are covering and where they fall short.",
+  "missingInformation": "Analysis of gaps we can exploit to establish authoritative EEAT.",
+  "outline": [
+    { "level": "H2", "title": "Section Title", "focus": "What to cover here..." }
+  ],
+  "peopleAlsoAsk": ["Question 1", "Question 2", "Question 3"],
+  "faqIdeas": ["FAQ Question 1", "FAQ Question 2"],
+  "recommendedToolIds": ["t1", "t2"],
+  "estimatedLength": "Estimated word count to rank (e.g. 3200 words)",
+  "fullReportMarkdown": "Complete high-fidelity beautifully-styled markdown research report containing all this information, structured professionally like an internal SEO Brief."
+}
+
+Do not include any quotes, markdown blocks, or leading text outside of the JSON. Return only the raw JSON.`;
+
+    const response = await generateContentWithRetryAndFallback({
+      contents: `Perform comprehensive SEO research brief for keyword: "${keyword}" in category: "${categoryId || "general"}"`,
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+        tools: [{ googleSearch: {} }],
+        toolConfig: { includeServerSideToolInvocations: true },
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            searchIntent: { type: Type.STRING },
+            competitors: { type: Type.STRING },
+            missingInformation: { type: Type.STRING },
+            outline: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  level: { type: Type.STRING },
+                  title: { type: Type.STRING },
+                  focus: { type: Type.STRING }
+                },
+                required: ["level", "title", "focus"]
+              }
+            },
+            peopleAlsoAsk: { type: Type.ARRAY, items: { type: Type.STRING } },
+            faqIdeas: { type: Type.ARRAY, items: { type: Type.STRING } },
+            recommendedToolIds: { type: Type.ARRAY, items: { type: Type.STRING } },
+            estimatedLength: { type: Type.STRING },
+            fullReportMarkdown: { type: Type.STRING }
+          },
+          required: ["searchIntent", "competitors", "missingInformation", "outline", "peopleAlsoAsk", "faqIdeas", "recommendedToolIds", "estimatedLength", "fullReportMarkdown"]
+        }
+      }
+    });
+
+    const parsedData = JSON.parse(response.text || "{}");
+    res.json(parsedData);
+  } catch (err: any) {
+    console.error("AI Research Step 1 failed:", err);
+    // Return a structured local fallback so the user can still proceed with the flow
+    const matchedTools = db.tools.slice(0, 2).map(t => t.id);
+    res.json({
+      searchIntent: "Informational & Commercial investigation. Users want deep-dive explanations paired with recommended enterprise solutions.",
+      competitors: "Existing competitors focus on high-level overviews but lack structured tutorials, comparison tables, and dynamic structured schemas.",
+      missingInformation: "Real-world statistics, direct checklist guides, and entity-rich schema integrations.",
+      outline: [
+        { level: "H2", title: `What is ${keyword}?`, focus: "An elegant, featured-snippet optimized explanation and direct definitions." },
+        { level: "H2", title: "Top Industry Solutions & Tools", focus: "Compare the leading tools to solve this problem." },
+        { level: "H2", title: "Step-by-Step Implementation Guide", focus: "An actionable walkthrough showing practical examples." }
+      ],
+      peopleAlsoAsk: [`How do I start with ${keyword}?`, `What is the best tool for ${keyword}?`],
+      faqIdeas: [`Is ${keyword} suitable for beginners?`, `How much does ${keyword} cost?`],
+      recommendedToolIds: matchedTools,
+      estimatedLength: "2800 words",
+      fullReportMarkdown: `# SEO Research Brief: "${keyword}"\n\n## 🎯 Search Intent\nInformational & Commercial. Users are seeking a comprehensive expert analysis.\n\n## 📊 Competitor Gaps\n- Competitors rely on generic templates.\n- Lack of actionable checklists and comparison tables.\n\n## 🛠️ Recommended Affiliate Tools\n- ${db.tools.slice(0, 2).map(t => t.name).join(", ")}\n\n## 📝 Outline Overview\n1. Introduction & Definitions\n2. Key Features and Comparison Matrix\n3. Actionable Checklist\n4. Frequently Asked Questions`
+    });
+  }
+});
+
+// --- AI WRITER: STEP 2: WRITE ARTICLE ENDPOINT ---
+app.post("/api/writer/write", async (req, res) => {
+  const { keyword, categoryId, outline, selectedToolIds, researchReport } = req.body;
+  if (!keyword || !categoryId) {
+    return res.status(400).json({ error: "Keyword and Category are required." });
+  }
+
+  try {
+    const ai = getGemini();
+
+    // Compile actual active tools details
+    const selectedTools = db.tools.filter(t => (selectedToolIds || []).includes(t.id));
+    const toolsContext = selectedTools.map(t => `
+Tool ID: "${t.id}"
+Name: "${t.name}"
+Company: "${t.company}"
+Description: "${t.description}"
+CTA text: "${t.ctaText}"
+Affiliate Link: "${t.affiliateUrl}"
+Logo/Icon Name: "${t.logo}"
+Category: "${t.category}"
+`).join("\n---\n");
+
+    const systemPrompt = `You are an elite Senior Tech Journalist, Content Platform Architect, and SEO specialist.
+Your mission is to write a highly citable, authoritative, in-depth blog article for keyword: "${keyword}".
+
+We have selected these verified recommended tools from our library to recommend in the text:
+${toolsContext}
+
+Guidelines for the final article content:
+1. WORD COUNT: Generate a massive, value-packed, comprehensive article of 2500+ words. 
+2. STYLE: Natural, experienced, helpful human expert. Absolutely NO AI cliches, passive structures, or repetitive lists.
+3. STRUCTURE:
+   - Begin with a highly focused, featured-snippet optimized introductory section.
+   - Include a comprehensive markdown "Table of Contents" block.
+   - Include a direct, elegant Comparison Table analyzing specifications or features of the recommended tools.
+   - For EACH recommended tool listed above, include a dedicated, premium, styled markdown section. Use custom block elements or clear highlights with their company name, details, and call to action.
+   - Include a helpful comparison and actionable "Checklist" or "Action Steps" section.
+   - Integrate pros & cons, primary statistics (cite research), and clear, practical real-world examples.
+   - Include a robust FAQ section.
+   - Conclude with an elegant summary section.
+
+You MUST respond with a single, valid JSON object matching this structure EXACTLY:
+{
+  "title": "SEO-optimised primary title",
+  "slug": "url-friendly-slug-all-lowercase-with-dashes",
+  "seoTitle": "SEO meta title (under 65 characters)",
+  "metaDescription": "SEO meta description (under 160 characters)",
+  "excerpt": "A short, engaging hook paragraph summarizing the article.",
+  "content": "Entire massive, richly formatted Markdown article text...",
   "faq": [
-    { "question": "FAQ Question 1", "answer": "Detailed answer..." },
-    { "question": "FAQ Question 2", "answer": "Detailed answer..." }
+    { "question": "FAQ Question 1", "answer": "Answer..." }
   ],
   "schema": {
     "@context": "https://schema.org",
-    "@type": "Article",
-    "headline": "Title of article",
+    "@type": "TechArticle",
+    "headline": "Title...",
+    "description": "Meta description...",
     "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600",
-    "author": { "@type": "Person", "name": "AffiMind Review Staff" }
+    "author": {
+      "@type": "Person",
+      "name": "BlogFlow Editorial Staff"
+    }
   }
 }
-Provide clean JSON without trailing commas.`;
+
+Do not wrap in additional markdown blocks or quotes. Return only raw JSON.`;
 
     const response = await generateContentWithRetryAndFallback({
-      contents: `Generate a detailed affiliate review guide for keyword: "${keyword}"`,
+      contents: `Generate final full-length article on keyword: "${keyword}" with outline: ${JSON.stringify(outline)} and report: "${researchReport}"`,
       config: {
         systemInstruction: systemPrompt,
         responseMimeType: "application/json",
@@ -672,487 +738,10 @@ Provide clean JSON without trailing commas.`;
           properties: {
             title: { type: Type.STRING },
             slug: { type: Type.STRING },
-            metaTitle: { type: Type.STRING },
-            metaDescription: { type: Type.STRING },
-            content: { type: Type.STRING },
-            faq: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  question: { type: Type.STRING },
-                  answer: { type: Type.STRING }
-                },
-                required: ["question", "answer"]
-              }
-            },
-            schema: { type: Type.OBJECT }
-          },
-          required: ["title", "slug", "metaTitle", "metaDescription", "content", "faq", "schema"]
-        }
-      }
-    });
-
-    const resultText = response.text || "{}";
-    const data = JSON.parse(resultText);
-    res.json(data);
-
-  } catch (err: any) {
-    console.error("AI Article Generation Failure:", err);
-    // Dynamic local fallback if Gemini is overloaded or API key is absent
-    const fallbackTitle = `The Ultimate guide to ${keyword}`;
-    const fallbackSlug = keyword.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-    res.json({
-      title: fallbackTitle,
-      slug: fallbackSlug,
-      metaTitle: `${fallbackTitle} | AffiMind`,
-      metaDescription: `Discover the best recommendations and reviews for ${keyword}. Expert comparisons, detailed ratings, and pros & cons.`,
-      content: `### Expert analysis on ${keyword}\n\nWelcome to our expert buying guide! When shopping in the **${category}** segment, smart buyers prioritize durability, precise tracking sensors, acoustic seal qualities, and temperature delay parameters depending on the exact hardware.\n\n#### Why Trust AffiMind?\nWe perform analytical evaluation of hundreds of technical metrics to distill absolute unbiased product comparisons.\n\n#### Summary Recommendations\nEvaluate high-density spec sheets before purchasing. Hybrid active noise cancellations isolate commuting hums, whereas programmable coffee thermal plates support customized morning brew cycles.`,
-      faq: [
-        { question: `What is the most critical element to review for ${keyword}?`, answer: "Always evaluate the warranty parameters and high-density spec sheets first." }
-      ],
-      schema: {
-        "@context": "https://schema.org",
-        "@type": "Article",
-        "headline": fallbackTitle,
-        "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600",
-        "author": { "@type": "Person", "name": "AffiMind expert staff" }
-      }
-    });
-  }
-});
-
-// --- BULK PRODUCT IMPORT API ---
-app.post("/api/products/import", (req, res) => {
-  const { products } = req.body;
-  if (!Array.isArray(products)) {
-    return res.status(400).json({ error: "Missing products array parameters." });
-  }
-
-  // Security Auth check matching bearer configuration
-  const authHeader = req.headers.authorization;
-  const adminPassword = db.settings.adminPassword || process.env.ADMIN_PASSWORD || "admin123";
-  if (authHeader && authHeader !== `Bearer ${adminPassword}`) {
-    return res.status(401).json({ error: "Unauthorized administrative access token." });
-  }
-
-  const imported: any[] = [];
-  products.forEach(p => {
-    if (!p.title || !p.slug || !p.category) return;
-    
-    const existingIndex = db.products.findIndex(ex => ex.slug === p.slug);
-    const newProduct = {
-      id: p.id || `p_${Date.now()}_${Math.floor(Math.random() * 10000)}`,
-      title: p.title,
-      slug: p.slug,
-      category: p.category,
-      content: p.content || "",
-      image: p.image || "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=600",
-      affiliateLink: p.affiliateLink || "",
-      price: p.price || "$0.00",
-      rating: Number(p.rating) || 4.5,
-      pros: Array.isArray(p.pros) ? p.pros : [],
-      cons: Array.isArray(p.cons) ? p.cons : [],
-      specs: p.specs || {},
-      buyingAdvice: p.buyingAdvice || "",
-      alternatives: Array.isArray(p.alternatives) ? p.alternatives : [],
-      featured: !!p.featured,
-      faq: Array.isArray(p.faq) ? p.faq : [],
-      createdAt: p.createdAt || new Date().toISOString()
-    };
-
-    if (existingIndex >= 0) {
-      db.products[existingIndex] = { ...db.products[existingIndex], ...newProduct, id: db.products[existingIndex].id };
-    } else {
-      db.products.push(newProduct);
-    }
-    imported.push(newProduct);
-  });
-
-  saveDatabase();
-  res.json({ success: true, count: imported.length, imported });
-});
-
-// --- SUPABASE DATABASE SYNCHRONIZATION HELPERS ---
-const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || "";
-
-async function saveToSupabase(product: any, article: any) {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    console.log("Supabase credentials not configured in environment variables. Skipping Supabase persistence.");
-    return false;
-  }
-
-  try {
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    console.log(`Synching product ${product.slug} to Supabase...`);
-    const { error: prodError } = await supabase
-      .from("products")
-      .upsert({
-        id: product.id,
-        title: product.title,
-        slug: product.slug,
-        category: product.category,
-        price: product.price,
-        rating: product.rating,
-        image: product.image,
-        affiliate_link: product.affiliateLink,
-        pros: product.pros,
-        cons: product.cons,
-        specs: product.specs,
-        faq: product.faq,
-        buying_advice: product.buyingAdvice,
-        alternatives: product.alternatives,
-        featured: product.featured,
-        created_at: product.createdAt
-      });
-
-    if (prodError) {
-      console.error("Supabase Products Upsert Error:", prodError);
-    } else {
-      console.log("Successfully saved product to Supabase.");
-    }
-
-    console.log(`Synching article ${article.slug} to Supabase...`);
-    const { error: artError } = await supabase
-      .from("articles")
-      .upsert({
-        id: article.id,
-        title: article.title,
-        slug: article.slug,
-        category: article.category,
-        image: article.image,
-        meta_title: article.metaTitle,
-        meta_description: article.metaDescription,
-        content: article.content,
-        faq: article.faq,
-        schema: article.schema,
-        affiliate_link: article.affiliateLink,
-        status: article.status,
-        created_at: article.createdAt
-      });
-
-    if (artError) {
-      console.error("Supabase Articles Upsert Error:", artError);
-    } else {
-      console.log("Successfully saved article to Supabase.");
-    }
-
-    return !prodError && !artError;
-  } catch (err) {
-    console.error("Failed to connect/write to Supabase client:", err);
-    return false;
-  }
-}
-
-// --- SUPABASE STATUS DIAGNOSTIC ENDPOINT ---
-app.get("/api/admin/supabase-status", async (req, res) => {
-  if (!supabaseUrl || !supabaseAnonKey) {
-    return res.json({
-      configured: false,
-      connected: false,
-      message: "Supabase environment variables (SUPABASE_URL and/or SUPABASE_ANON_KEY) are not configured.",
-      url: supabaseUrl ? `${supabaseUrl.substring(0, 15)}...` : "not set",
-      key: supabaseAnonKey ? "configured but masked" : "not set"
-    });
-  }
-
-  try {
-    const { createClient } = await import("@supabase/supabase-js");
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-    // Test querying the categories table to verify schema is created and credentials work
-    const { data, error } = await supabase.from("categories").select("slug").limit(1);
-
-    if (error) {
-      // Check if table missing
-      const isTableMissing = error.code === "P0001" || error.message?.toLowerCase().includes("relation") || error.message?.toLowerCase().includes("does not exist");
-      return res.json({
-        configured: true,
-        connected: false,
-        tablesExist: !isTableMissing,
-        error: error.message,
-        errorCode: error.code,
-        message: isTableMissing 
-          ? "Supabase connected successfully, but the required database tables (categories, products, articles) have not been created. Please run the Supabase Schema SQL script in your Supabase SQL Editor."
-          : `Connected with error: ${error.message}`
-      });
-    }
-
-    return res.json({
-      configured: true,
-      connected: true,
-      tablesExist: true,
-      message: "Your Supabase integration is fully configured and working! Connection established and schemas verified.",
-      url: supabaseUrl
-    });
-  } catch (err: any) {
-    return res.json({
-      configured: true,
-      connected: false,
-      tablesExist: false,
-      error: err.message || String(err),
-      message: "Failed to connect to Supabase. Check that your credentials are valid and the URL is correct."
-    });
-  }
-});
-
-// --- PRODUCT IMAGE RETRIEVAL UTILITIES ---
-
-function extractAmazonProductImage(html: string): string | null {
-  if (!html) return null;
-
-  const hiResMatch = html.match(/"hiRes"\s*:\s*"([^"]+)"/i);
-  if (hiResMatch && hiResMatch[1]) {
-    return hiResMatch[1].replace(/\\/g, "");
-  }
-
-  const largeMatch = html.match(/"large"\s*:\s*"([^"]+)"/i);
-  if (largeMatch && largeMatch[1]) {
-    return largeMatch[1].replace(/\\/g, "");
-  }
-
-  const ogImageMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
-  if (ogImageMatch && ogImageMatch[1]) {
-    return ogImageMatch[1];
-  }
-
-  const dynamicImageMatch = html.match(/data-a-dynamic-image="([^"]+)"/i);
-  if (dynamicImageMatch && dynamicImageMatch[1]) {
-    const decoded = dynamicImageMatch[1].replace(/&quot;/g, '"');
-    try {
-      const parsed = JSON.parse(decoded);
-      const urls = Object.keys(parsed);
-      if (urls.length > 0) {
-        return urls[0];
-      }
-    } catch (e) {}
-  }
-
-  const landingMatch = html.match(/"landingImage"\s*:\s*"([^"]+)"/i);
-  if (landingMatch && landingMatch[1]) {
-    return landingMatch[1].replace(/\\/g, "");
-  }
-
-  return null;
-}
-
-async function getAmazonImage(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5"
-      },
-      redirect: "follow"
-    });
-    if (!res.ok) {
-      console.log(`Failed to fetch Amazon URL, status: ${res.status}`);
-      return null;
-    }
-    const html = await res.text();
-    const extracted = extractAmazonProductImage(html);
-    if (extracted) {
-      console.log(`Successfully extracted Amazon image: ${extracted}`);
-      return extracted;
-    }
-  } catch (err) {
-    console.error("Error in getAmazonImage:", err);
-  }
-  return null;
-}
-
-async function getGoogleSearchProductImage(productName: string): Promise<string | null> {
-  try {
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          'User-Agent': 'aistudio-build'
-        }
-      }
-    });
-
-    const response = await ai.models.generateContent({
-      model: "gemini-3.5-flash",
-      contents: `Search the web to find the official product image URL or a high-quality product photo for: "${productName}". Return ONLY the raw direct image URL (starting with http or https and ending with .jpg, .png, .jpeg, or similar, or a clean media hosting URL) as plain text. Do not wrap it in quotes, markdown, or code blocks. Do not write any other explanation. Just the URL.`,
-      config: {
-        tools: [{ googleSearch: {} }]
-      }
-    });
-
-    const text = response.text?.trim() || "";
-    const cleanedUrl = text.replace(/[`'"]/g, "").trim();
-    if (cleanedUrl && (cleanedUrl.startsWith("http://") || cleanedUrl.startsWith("https://"))) {
-      console.log(`Gemini Search Grounding returned product image: ${cleanedUrl}`);
-      return cleanedUrl;
-    }
-  } catch (err) {
-    console.error("Error in getGoogleSearchProductImage:", err);
-  }
-  return null;
-}
-
-async function fetchRealProductImage(productName: string, affiliateLink: string, defaultImageUrl: string): Promise<string> {
-  console.log(`Attempting to fetch real product image for: ${productName}`);
-  
-  if (affiliateLink && (affiliateLink.includes("amazon.com") || affiliateLink.includes("amzn.to") || affiliateLink.includes("media-amazon.com"))) {
-    const extractedImage = await getAmazonImage(affiliateLink);
-    if (extractedImage) {
-      return extractedImage;
-    }
-  }
-
-  const searchImage = await getGoogleSearchProductImage(productName);
-  if (searchImage) {
-    return searchImage;
-  }
-
-  console.log(`Using default category fallback image: ${defaultImageUrl}`);
-  return defaultImageUrl;
-}
-
-// --- ✨ MANUAL PRODUCT GENERATION API ENDPOINT ---
-function slugify(text: string): string {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")           // Replace spaces with -
-    .replace(/[^\w\-]+/g, "")       // Remove all non-word chars
-    .replace(/\-\-+/g, "-")         // Replace multiple - with single -
-    .replace(/^-+/, "")             // Trim - from start
-    .replace(/-+$/, "");            // Trim - from end
-}
-
-app.post("/api/admin/generate-today-product", requireAdminAuth, async (req, res) => {
-  const { productName, affiliateLink, category } = req.body;
-
-  if (!productName || !productName.trim()) {
-    return res.status(400).json({ error: "Product name is required." });
-  }
-  if (!affiliateLink || !affiliateLink.trim()) {
-    return res.status(400).json({ error: "Affiliate link is required." });
-  }
-
-  try {
-    const rawSlug = slugify(productName);
-    const finalSlug = rawSlug.endsWith("-review") ? rawSlug : `${rawSlug}-review`;
-
-    // Prevent duplicate products
-    const isDuplicate = db.products.some(
-      (p) => p.slug === finalSlug || p.title.toLowerCase().trim() === productName.toLowerCase().trim()
-    );
-    if (isDuplicate) {
-      return res.status(400).json({ error: "A product review with this name or URL slug already exists." });
-    }
-
-    let finalCategory = category;
-    
-    // Auto-detect category with Gemini if selected as auto
-    if (!finalCategory || finalCategory === "auto") {
-      console.log(`Auto-detecting category for product: ${productName}`);
-      try {
-        const catResponse = await generateContentWithRetryAndFallback({
-          contents: `Given the product name: "${productName}", categorize it into exactly one of these category slugs: 'earbuds', 'gaming-mice', or 'coffee-makers'. Respond ONLY with the category slug in lowercase without quotes or punctuation.`,
-        });
-        const detected = catResponse.text?.trim().toLowerCase().replace(/['"`]/g, "");
-        if (detected && ["earbuds", "gaming-mice", "coffee-makers"].includes(detected)) {
-          finalCategory = detected;
-        } else {
-          finalCategory = "earbuds"; // fallback
-        }
-      } catch (err) {
-        console.error("Failed to auto-detect category:", err);
-        finalCategory = "earbuds";
-      }
-    }
-
-    console.log(`Starting combined Strategic Research and Editorial Synthesis for: ${productName} (Category: ${finalCategory})`);
-
-    // Dynamically retrieve existing articles for natural internal links (SEO)
-    const existingArticlesForLinking = db.articles.slice(0, 4).map(a => ({
-      title: a.title,
-      slug: a.slug
-    }));
-
-    // Choose Unsplash image based on category
-    let defaultImageUrl = "https://images.unsplash.com/photo-1546435770-a3e426bf472b?w=600&auto=format&fit=crop&q=80";
-    if (finalCategory === "earbuds") {
-      defaultImageUrl = "https://images.unsplash.com/photo-1590658268037-6bf12165a8df?w=600&auto=format&fit=crop&q=80";
-    } else if (finalCategory === "gaming-mice") {
-      defaultImageUrl = "https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?w=600&auto=format&fit=crop&q=80";
-    } else if (finalCategory === "coffee-makers") {
-      defaultImageUrl = "https://images.unsplash.com/photo-1518057111178-44a106bad636?w=600&auto=format&fit=crop&q=80";
-    }
-
-    const systemPrompt = `You are an expert product analyst, consumer psychologist, SEO copywriter, and professional content strategist at "AffiMind".
-Your mission is to perform dual phases of generation (Strategic Research followed by Synthesis) in a single response for:
-Product Name: "${productName}"
-Category: "${finalCategory}"
-
-PHASE 1: STRATEGIC BRIEF (DEEP FOUNDATIONS)
-You must first generate research-based foundations:
-1. "deepResearch": Detailed research notes outlining design, performance, specifications, community consensus, strengths, weaknesses, and key rival comparisons.
-2. "targetAudience": A thorough description of target buyer personas, their lifestyles, demographics, daily needs, and exact pain points.
-3. "buyingIntent": Break down the user's purchase motivation (upgrading, budget alternative, luxury, etc.) and conversion triggers.
-4. "contentOutline": A detailed hierarchical layout of headings and subheadings.
-
-PHASE 2: EDITORIAL SYNTHESIS (HIGH-CONVERTING ARTICLE)
-Based directly on the Foundations you mapped above, synthesize a masterclass product review and structured metadata:
-5. "seoTitle": Catchy, click-worthy, SEO title (max 65 chars) ending with "| AffiMind".
-6. "metaDescription": High-CTR search meta description (max 160 chars).
-7. "content": Comprehensive, expert-level, markdown-formatted product review. It should feel premium, objective, highly engaging, and citable. Include detailed feature analysis, performance, build quality, and a dedicated "Buying Guide & Ultimate Verdict" section.
-   - For SEO (internal links), naturally insert 1-2 standard Markdown links inside the review body pointing to other relevant pages on our site:
-     ${existingArticlesForLinking.map(a => `* "${a.title}": /articles/${a.slug}`).join("\n")}
-     * Wireless Earbuds category: /categories/earbuds
-     * Gaming Mice category: /categories/gaming-mice
-     * Coffee Makers category: /categories/coffee-makers
-   - Example link: "...for alternative options, you can browse our [wireless earbuds category](/categories/earbuds) to find..."
-8. "buyingAdvice": Concise summary paragraph (approx 50-80 words) advising who this product is best suited for and who should avoid it.
-9. "pros": Array of exactly 4 clear, compelling pros.
-10. "cons": Array of exactly 2 precise cons.
-11. "rating": Numerical rating from 1.0 to 5.0 (e.g., 4.7).
-12. "estimatedPrice": Estimated retail price string (e.g., "$129.99").
-13. "specs": Key-value dictionary of specs (at least 4 key-value pairs, e.g., "Battery": "30 Hours", "Driver": "11mm").
-14. "faq": Exactly 2 highly relevant FAQ question-and-answer objects.
-15. "schema": Valid Schema.org JSON-LD object for a Product Review. Make sure it specifies "@context": "https://schema.org", "@type": "Product", "name": "${productName}", "offers": { "@type": "Offer", "price": "PRICE_PLACEHOLDER", "priceCurrency": "USD", "url": "AFFILIATE_LINK_PLACEHOLDER" }, and a "review" block.
-
-Provide pristine, fully valid JSON data.`;
-
-    const response = await generateContentWithRetryAndFallback({
-      contents: `Generate complete buying guide review and rich data for "${productName}" utilizing our combined planning and synthesis brief.`,
-      config: {
-        systemInstruction: systemPrompt,
-        responseMimeType: "application/json",
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            deepResearch: { type: Type.STRING },
-            targetAudience: { type: Type.STRING },
-            buyingIntent: { type: Type.STRING },
-            contentOutline: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
             seoTitle: { type: Type.STRING },
             metaDescription: { type: Type.STRING },
+            excerpt: { type: Type.STRING },
             content: { type: Type.STRING },
-            buyingAdvice: { type: Type.STRING },
-            pros: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            cons: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING }
-            },
-            rating: { type: Type.NUMBER },
-            estimatedPrice: { type: Type.STRING },
-            specs: { type: Type.OBJECT },
             faq: {
               type: Type.ARRAY,
               items: {
@@ -1166,123 +755,193 @@ Provide pristine, fully valid JSON data.`;
             },
             schema: { type: Type.OBJECT }
           },
-          required: [
-            "deepResearch", "targetAudience", "buyingIntent", "contentOutline",
-            "seoTitle", "metaDescription", "content", "buyingAdvice", "pros", "cons",
-            "rating", "estimatedPrice", "specs", "faq", "schema"
-          ]
+          required: ["title", "slug", "seoTitle", "metaDescription", "excerpt", "content", "faq", "schema"]
         }
       }
     });
 
     const parsedData = JSON.parse(response.text || "{}");
-    const generatedPrice = parsedData.estimatedPrice || "$149.99";
-
-    const planningData = {
-      deepResearch: parsedData.deepResearch || "",
-      targetAudience: parsedData.targetAudience || "",
-      buyingIntent: parsedData.buyingIntent || "",
-      contentOutline: parsedData.contentOutline || []
-    };
-
-    // Fetch the real product image from Amazon affiliate URL or search grounding fallback
-    const finalProductImage = await fetchRealProductImage(productName, affiliateLink, defaultImageUrl);
-
-    // Setup final product & article schemas
-    const newProduct = {
-      id: `p_${Date.now()}`,
-      title: productName,
-      slug: finalSlug,
-      category: finalCategory,
-      content: parsedData.content,
-      image: finalProductImage,
-      affiliateLink: affiliateLink,
-      price: generatedPrice,
-      rating: Number(parsedData.rating) || 4.5,
-      pros: parsedData.pros || [],
-      cons: parsedData.cons || [],
-      specs: parsedData.specs || {},
-      faq: parsedData.faq || [],
-      buyingAdvice: parsedData.buyingAdvice || "",
-      alternatives: db.products
-        .filter(p => p.category === finalCategory)
-        .slice(0, 2)
-        .map(p => p.slug),
-      createdAt: new Date().toISOString(),
-      featured: true,
-      researchBrief: {
-        deepResearch: planningData.deepResearch,
-        targetAudience: planningData.targetAudience,
-        buyingIntent: planningData.buyingIntent,
-        contentOutline: planningData.contentOutline
+    res.json(parsedData);
+  } catch (err: any) {
+    console.error("AI Writer Step 2 failed:", err);
+    // Elegant dynamic fallback
+    const title = `${keyword.charAt(0).toUpperCase() + keyword.slice(1)}: The Definitive Guide for Search Architects`;
+    const slug = keyword.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    
+    // Auto tools list block for fallback
+    let fallbackToolsContent = "\n### Recommended Industry Solutions\n\n";
+    selectedToolIds.forEach((id: string) => {
+      const tool = db.tools.find(t => t.id === id);
+      if (tool) {
+        fallbackToolsContent += `#### 🛠️ ${tool.name} (${tool.company})\n\n${tool.description}\n\n👉 [${tool.ctaText}](${tool.affiliateUrl}) | [Official Site](${tool.officialUrl})\n\n---\n`;
       }
-    };
-
-    let schemaObj = parsedData.schema || {};
-    let schemaStr = JSON.stringify(schemaObj);
-    schemaStr = schemaStr.replace(/AFFILIATE_LINK_PLACEHOLDER/g, affiliateLink);
-    schemaStr = schemaStr.replace(/PRICE_PLACEHOLDER/g, generatedPrice.replace("$", ""));
-    try {
-      schemaObj = JSON.parse(schemaStr);
-    } catch {
-      // ignore
-    }
-
-    // Ensure image matches the real fetched product image in the Schema.org JSON-LD structured data
-    if (schemaObj) {
-      schemaObj.image = finalProductImage;
-    }
-
-    const newArticle = {
-      id: `a_${Date.now()}`,
-      title: parsedData.seoTitle || `${productName} Review`,
-      slug: finalSlug,
-      category: finalCategory,
-      content: parsedData.content,
-      metaTitle: parsedData.seoTitle || `${productName} Review`,
-      metaDescription: parsedData.metaDescription || "",
-      faq: parsedData.faq || [],
-      schema: schemaObj,
-      image: finalProductImage,
-      affiliateLink: affiliateLink,
-      createdAt: new Date().toISOString(),
-      status: "published" as const,
-      researchBrief: {
-        deepResearch: planningData.deepResearch,
-        targetAudience: planningData.targetAudience,
-        buyingIntent: planningData.buyingIntent,
-        contentOutline: planningData.contentOutline
-      }
-    };
-
-    // Save locally
-    db.products.push(newProduct);
-    db.articles.push(newArticle);
-    saveDatabase();
-
-    // Save to Supabase if credentials are set
-    const supabaseSaved = await saveToSupabase(newProduct, newArticle);
-
-    console.log(`Product generation and immediate publishing complete for ${productName}`);
-    res.status(201).json({
-      success: true,
-      supabaseSaved,
-      product: newProduct,
-      article: newArticle,
-      brief: planningData
     });
 
-  } catch (err: any) {
-    console.error("Generate Product API Error:", err);
-    res.status(500).json({ error: cleanErrorMessage(err) });
+    res.json({
+      title,
+      slug,
+      seoTitle: `${title} | BlogFlow AI`,
+      metaDescription: `Discover the ultimate expert handbook for ${keyword}. Actionable frameworks, statistics, and industry-standard tool reviews.`,
+      excerpt: `Traditional approaches to ${keyword} are failing. This definitive expert guide covers the technical strategies and critical tools required to drive real performance.`,
+      content: `# ${title}\n\nTraditional approaches to **${keyword}** are failing. In an AI-first digital landscape, scaling traffic and ranking highly requires advanced technical models and objective, data-backed frameworks.\n\n## Table of Contents\n1. [The Foundation of ${keyword}](#foundation)\n2. [Comparative Tool Analysis](#tools)\n3. [Step-by-Step Action Steps](#checklist)\n4. [Expert FAQ](#faq)\n\n<a name="foundation"></a>\n## 1. The Foundation of ${keyword}\n\nSearch architecture has moved beyond raw keyword density. To capture authority and build trustworthy EEAT, content systems must provide unique, actionable insights and clear primary research.\n\n${fallbackToolsContent}\n\n<a name="tools"></a>\n## 2. Comparative Analysis Matrix\n\nBelow is an objective comparison of the top recommendations:\n\n| Tool Name | Focus Area | Best For | Status |\n| :--- | :--- | :--- | :--- |\n${db.tools.map(t => `| **${t.name}** | ${t.category} | Enterprise Growth | Active |`).join("\n")}\n\n<a name="checklist"></a>\n## 3. Actionable Checklist\n- [ ] Conduct thorough competitor audit mapping semantic terms.\n- [ ] Install entity schema markups.\n- [ ] Inject citable statistics into headers.\n- [ ] Continuously track citation referral paths.`,
+      faq: [
+        { question: `Is this guide for ${keyword} updated?`, answer: "Yes, our guides are updated quarterly to reflect frontier LLM models." }
+      ],
+      schema: {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": title,
+        "image": "https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?w=600",
+        "author": { "@type": "Person", "name": "BlogFlow Editorial Staff" }
+      }
+    });
   }
 });
 
-// --- PROGRAMMATIC XML RSS FEED FOR SYNDICATION ---
-app.get(["/rss.xml", "/feed.xml"], (req, res) => {
+// --- AI VISIBILITY & CITATION MANAGER ENDPOINTS ---
+
+// GET AI Visibility tracker suggestions and overall site health
+app.get("/api/admin/visibility", (req, res) => {
+  // Generate mock yet realistic SEO and citation metrics
+  const publishedArticles = db.articles.filter(a => a.status === "published");
+  const totalViews = publishedArticles.reduce((sum, a) => sum + (a.views || 0), 0);
+  const totalClicks = publishedArticles.reduce((sum, a) => sum + (a.clicks || 0), 0);
+
+  const metrics = {
+    gscClicks: Math.round(totalClicks * 1.5) + 320,
+    gscImpressions: Math.round(totalViews * 4.2) + 2450,
+    gscAvgPosition: 8.4,
+    gscCtr: 5.2,
+    aiOverviewsMentions: Math.round(publishedArticles.length * 0.8) + 3,
+    perplexityCitations: Math.round(publishedArticles.length * 1.2) + 5,
+    chatGptMentions: Math.round(publishedArticles.length * 0.5) + 2,
+    claudeMentions: Math.round(publishedArticles.length * 0.3) + 1,
+    referralTraffic: Math.round(totalClicks * 0.8) + 140
+  };
+
+  // Ensure suggestions exist
+  if (db.suggestions.length === 0 && publishedArticles.length > 0) {
+    db.suggestions = [
+      {
+        id: "sug_1",
+        articleId: publishedArticles[0].id,
+        articleTitle: publishedArticles[0].title,
+        type: "eeat",
+        priority: "high",
+        title: "Missing Author EEAT Credentials",
+        description: "Frontier LLMs prioritize verified author biographies. Inject clear credentials for the assigned author.",
+        suggestionMarkdown: "### Recommended Biography Additions:\nAdd credentials showing over 5+ years of active technical SEO execution."
+      }
+    ];
+    saveDatabase();
+  }
+
+  res.json({
+    metrics,
+    suggestions: db.suggestions,
+    internalLinkOpportunities: db.internalLinkOpportunities
+  });
+});
+
+app.post("/api/admin/visibility/suggestions", requireAdminAuth, (req, res) => {
+  const { id, type, priority, title, description, suggestionMarkdown, articleId, articleTitle } = req.body;
+  const newSug = {
+    id: id || `sug_${Date.now()}`,
+    articleId,
+    articleTitle,
+    type,
+    priority,
+    title,
+    description,
+    suggestionMarkdown
+  };
+  const idx = db.suggestions.findIndex(s => s.id === newSug.id);
+  if (idx >= 0) {
+    db.suggestions[idx] = newSug;
+  } else {
+    db.suggestions.push(newSug);
+  }
+  saveDatabase();
+  res.json({ success: true, suggestion: newSug });
+});
+
+// Link Opportunities Manager
+app.post("/api/admin/link-opportunities/resolve", requireAdminAuth, (req, res) => {
+  const { id, status } = req.body; // 'accepted' | 'ignored'
+  const idx = db.internalLinkOpportunities.findIndex(o => o.id === id);
+  if (idx >= 0) {
+    db.internalLinkOpportunities[idx].status = status;
+    
+    // If accepted, let's inject an internal link reference to the source article!
+    if (status === "accepted") {
+      const opportunity = db.internalLinkOpportunities[idx];
+      const sourceArt = db.articles.find(a => a.id === opportunity.sourceArticleId);
+      if (sourceArt) {
+        sourceArt.internalLinks = sourceArt.internalLinks || [];
+        sourceArt.internalLinks.push({
+          url: `/article/${opportunity.targetArticleTitle.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+          anchorText: opportunity.suggestedAnchorText
+        });
+      }
+    }
+    saveDatabase();
+    res.json({ success: true, opportunity: db.internalLinkOpportunities[idx] });
+  } else {
+    res.status(404).json({ error: "Link opportunity not found" });
+  }
+});
+
+// Analytics Endpoint
+app.get("/api/admin/analytics", (req, res) => {
+  const publishedArticles = db.articles.filter(a => a.status === "published");
+  const drafts = db.articles.filter(a => a.status === "draft");
+  const scheduled = db.articles.filter(a => a.status === "scheduled");
+
+  const totalViews = publishedArticles.reduce((sum, a) => sum + (a.views || 0), 0);
+  const totalClicks = publishedArticles.reduce((sum, a) => sum + (a.clicks || 0), 0);
+
+  const topPages = publishedArticles
+    .map(a => ({ title: a.title, slug: a.slug, views: a.views || 0, clicks: a.clicks || 0 }))
+    .sort((a, b) => b.views - a.views)
+    .slice(0, 5);
+
+  const keywords = publishedArticles
+    .filter(a => a.primaryKeyword)
+    .map(a => ({ keyword: a.primaryKeyword, clicks: a.clicks || 0, position: 5.4 }))
+    .slice(0, 5);
+
+  res.json({
+    counts: {
+      published: publishedArticles.length,
+      drafts: drafts.length,
+      scheduled: scheduled.length,
+      totalTools: db.tools.length,
+      totalViews,
+      totalClicks
+    },
+    topPages,
+    topKeywords: keywords,
+    siteHealth: 94
+  });
+});
+
+// --- DYNAMIC ROBOTS, RSS, & SITEMAP ---
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.send(`User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api
+
+Sitemap: ${req.protocol}://${req.get("host")}/sitemap.xml`);
+});
+
+app.get("/rss.xml", (req, res) => {
   res.type("application/xml");
   const host = `${req.protocol}://${req.get("host")}`;
-  
+  const published = db.articles.filter(a => a.status === "published");
+
   let xml = `<?xml version="1.0" encoding="UTF-8" ?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
 <channel>
@@ -1293,22 +952,18 @@ app.get(["/rss.xml", "/feed.xml"], (req, res) => {
   <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>
   <atom:link href="${host}/rss.xml" rel="self" type="application/rss+xml" />`;
 
-  const published = db.articles.filter(a => !a.status || a.status === "published");
-  
   published.forEach(a => {
-    const cleanDesc = (a.metaDescription || a.content.substring(0, 200))
+    const cleanDesc = (a.excerpt || a.metaDescription || "")
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&apos;");
+      .replace(/>/g, "&gt;");
 
     xml += `
   <item>
     <title>${a.title.replace(/&/g, "&amp;")}</title>
     <link>${host}/article/${a.slug}</link>
     <guid>${host}/article/${a.slug}</guid>
-    <pubDate>${new Date(a.createdAt || Date.now()).toUTCString()}</pubDate>
+    <pubDate>${new Date(a.createdAt).toUTCString()}</pubDate>
     <description>${cleanDesc}</description>
     <category>${a.category}</category>
   </item>`;
@@ -1320,24 +975,12 @@ app.get(["/rss.xml", "/feed.xml"], (req, res) => {
   res.send(xml);
 });
 
-// --- PROGRAMMATIC ROBOTS & SITEMAP FOR SEO ---
-app.get("/robots.txt", (req, res) => {
-  res.type("text/plain");
-  res.send(`User-agent: *
-Allow: /
-Disallow: /admin
-Disallow: /api
-
-Sitemap: ${req.protocol}://${req.get("host")}/sitemap.xml`);
-});
-
 app.get("/sitemap.xml", (req, res) => {
   res.type("application/xml");
   const host = `${req.protocol}://${req.get("host")}`;
-  
+
   let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <!-- Core pages -->
   <url>
     <loc>${host}/</loc>
     <changefreq>daily</changefreq>
@@ -1369,23 +1012,12 @@ app.get("/sitemap.xml", (req, res) => {
     <priority>0.3</priority>
   </url>`;
 
-  // Dynamic products sitemap URLs
-  db.products.forEach(p => {
-    xml += `
-  <url>
-    <loc>${host}/product/${p.slug}</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
-  </url>`;
-  });
-
-  // Dynamic articles sitemap URLs
-  db.articles.forEach(a => {
+  db.articles.filter(a => a.status === "published").forEach(a => {
     xml += `
   <url>
     <loc>${host}/article/${a.slug}</loc>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.9</priority>
   </url>`;
   });
 
@@ -1393,18 +1025,17 @@ app.get("/sitemap.xml", (req, res) => {
   res.send(xml);
 });
 
-// --- EXPRESS ROUTE SEO INTERCEPTOR & STATIC SERVING ---
+// --- EXPRESS ROUTE SEO INTERCEPTOR & HTML SERVING ---
 
 async function handleHtmlRequest(req: express.Request, res: express.Response) {
   const urlPath = req.path;
   const host = `${req.protocol}://${req.get("host")}`;
-  
-  // Default general metadata (fallback)
+
   let title = db.settings.seoTitle;
   let description = db.settings.seoDescription;
   let ogTitle = db.settings.seoTitle;
   let ogDescription = db.settings.seoDescription;
-  let ogImage = "https://images.unsplash.com/photo-1531403009284-440f080d1e12?w=1200&q=80"; // High resolution hero placeholder
+  let ogImage = "https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=1200&q=80";
   let schema: any = {
     "@context": "https://schema.org",
     "@type": "WebSite",
@@ -1413,87 +1044,42 @@ async function handleHtmlRequest(req: express.Request, res: express.Response) {
     "description": db.settings.siteDescription
   };
 
-  // Determine path routing to customize SEO metatags
-  if (urlPath.startsWith("/product/")) {
-    const slug = urlPath.replace("/product/", "");
-    const product = db.products.find(p => p.slug === slug);
-    if (product) {
-      title = `Expert Review: ${product.title}`;
-      description = `Read our expert analysis, specifications, and pros/cons for ${product.title}. See our final buying recommendation and price comparisons.`;
-      ogTitle = `Review: ${product.title} - AffiMind`;
-      ogDescription = description;
-      ogImage = product.image;
-      
-      // JSON-LD Product & Review Schemas
-      schema = {
-        "@context": "https://schema.org",
-        "@type": "Product",
-        "name": product.title,
-        "image": product.image,
-        "description": description,
-        "offers": {
-          "@type": "Offer",
-          "price": product.price.replace("$", ""),
-          "priceCurrency": "USD",
-          "availability": "https://schema.org/InStock"
-        },
-        "review": {
-          "@type": "Review",
-          "author": { "@type": "Person", "name": "AffiMind Review Staff" },
-          "reviewRating": {
-            "@type": "Rating",
-            "ratingValue": product.rating,
-            "bestRating": "5"
-          },
-          "reviewBody": product.content.substring(0, 300)
-        }
-      };
-    }
-  } else if (urlPath.startsWith("/article/")) {
+  if (urlPath.startsWith("/article/")) {
     const slug = urlPath.replace("/article/", "");
     const article = db.articles.find(a => a.slug === slug);
     if (article) {
-      title = article.metaTitle || article.title;
-      description = article.metaDescription || article.content.substring(0, 150) + "...";
+      title = article.seoTitle || article.title;
+      description = article.metaDescription || article.excerpt || article.content.substring(0, 150) + "...";
       ogTitle = title;
       ogDescription = description;
-      ogImage = article.image;
+      ogImage = article.featuredImage || ogImage;
       schema = article.schema || {
         "@context": "https://schema.org",
-        "@type": "Article",
+        "@type": "TechArticle",
         "headline": article.title,
-        "image": article.image,
+        "image": ogImage,
         "description": description
       };
     }
   } else if (urlPath.startsWith("/categories")) {
-    title = `Compare Products by Categories | AffiMind`;
-    description = `Explore our expert research categorized by consumer technology, wireless audio, and coffee brewing hardware.`;
-    ogTitle = title;
-    ogDescription = description;
+    title = `Browse Articles by Category | ${db.settings.siteName}`;
+    description = `Explore expert informational guides, technical SEO insights, and Generative Engine Optimization tutorials.`;
   } else if (urlPath.startsWith("/about")) {
-    title = `About Us | AffiMind`;
-    description = `Learn how AffiMind combines real expert human verification with cutting-edge Generative AI Search optimization to revolutionize affiliate comparisons.`;
-  } else if (urlPath.startsWith("/contact")) {
-    title = `Get in Touch | Contact AffiMind`;
-    description = `Have questions or advertising inquiries? Contact our team of tech researchers and product specialists at AffiMind.`;
+    title = `About Our Platform | ${db.settings.siteName}`;
+    description = `Learn more about our editorial processes, expert authors, and AI search citation tracking optimization techniques.`;
   }
 
   let robotsTag = "";
   if (urlPath.startsWith("/admin")) {
     res.setHeader("X-Robots-Tag", "noindex, nofollow");
     robotsTag = '\n    <meta name="robots" content="noindex, nofollow" />';
-    title = `Admin Portal | ${db.settings.siteName}`;
-    description = `Secure Admin Portal for catalog management and editorial configurations.`;
+    title = `Administrative CMS | ${db.settings.siteName}`;
+    description = `Secure Admin Editor CMS portal.`;
   }
 
-  // Read index.html template
-  let templatePath = "";
-  if (process.env.NODE_ENV !== "production") {
-    templatePath = path.join(process.cwd(), "index.html");
-  } else {
-    templatePath = path.join(process.cwd(), "dist", "index.html");
-  }
+  let templatePath = process.env.NODE_ENV !== "production"
+    ? path.join(process.cwd(), "index.html")
+    : path.join(process.cwd(), "dist", "index.html");
 
   try {
     if (!fs.existsSync(templatePath)) {
@@ -1501,11 +1087,9 @@ async function handleHtmlRequest(req: express.Request, res: express.Response) {
     }
 
     let html = fs.readFileSync(templatePath, "utf-8");
-
-    // Dynamic replacement block
     const canonicalUrl = `${host}${urlPath}`;
     const headReplacements = `
-    <title>${title} | ${db.settings.siteName}</title>${robotsTag}
+    <title>${title}</title>${robotsTag}
     <meta name="description" content="${description}" />
     <link rel="canonical" href="${canonicalUrl}" />
     <meta property="og:title" content="${ogTitle}" />
@@ -1520,9 +1104,7 @@ async function handleHtmlRequest(req: express.Request, res: express.Response) {
     <script type="application/ld+json">${JSON.stringify(schema)}</script>
     `;
 
-    // Inject Head Replacements by replacing standard <title> tag
     html = html.replace(/<title>.*?<\/title>/, headReplacements);
-
     res.setHeader("Content-Type", "text/html");
     res.send(html);
   } catch (error) {
@@ -1531,18 +1113,16 @@ async function handleHtmlRequest(req: express.Request, res: express.Response) {
   }
 }
 
-// Vite dev integration or static files serve
+// Vite Server Configuration
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
-      appType: "custom", // Use custom so we can intercept HTML rendering on dev mode too!
+      appType: "custom",
     });
-    
-    // API first
+
     app.use(vite.middlewares);
-    
-    // Non-API routes served via handleHtmlRequest
+
     app.get("*", async (req, res, next) => {
       if (req.path.startsWith("/api/") || req.path.includes(".")) {
         return next();
@@ -1550,13 +1130,9 @@ async function startServer() {
       await handleHtmlRequest(req, res);
     });
   } else {
-    // Production static assets serving
     const distPath = path.join(process.cwd(), "dist");
-    
-    // Serve static files (css, js, images, etc.) but avoid matching HTML paths directly
     app.use(express.static(distPath, { index: false }));
 
-    // Non-API routes served via handleHtmlRequest
     app.get("*", async (req, res, next) => {
       if (req.path.startsWith("/api/") || req.path.includes(".")) {
         return next();
@@ -1566,7 +1142,7 @@ async function startServer() {
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`AffiMind Server online at http://localhost:${PORT}`);
+    console.log(`Blogging Platform Server online at http://localhost:${PORT}`);
   });
 }
 

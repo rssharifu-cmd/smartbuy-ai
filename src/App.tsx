@@ -7,7 +7,6 @@ import React, { useState, useEffect } from "react";
 import { Header, Footer } from "./components/Navigation.tsx";
 import { Home } from "./pages/Home.tsx";
 import { Categories } from "./pages/Categories.tsx";
-import { ProductDetail } from "./pages/ProductDetail.tsx";
 import { ArticleDetail } from "./pages/ArticleDetail.tsx";
 import { SearchResults } from "./pages/SearchResults.tsx";
 import { About } from "./pages/About.tsx";
@@ -18,25 +17,41 @@ import { Admin } from "./pages/Admin.tsx";
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState(window.location.pathname);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem("theme");
+    return saved ? saved === "dark" : true; // Default to dark theme for professional tech vibe
+  });
+  
   const [settings, setSettings] = useState({
-    siteName: "AffiMind",
-    siteDescription: "Optimized AI product recommendations grounded in certified review metrics.",
-    affiliateDisclosure: "AffiMind is a participant in the Amazon Services LLC Associates Program and other advertising networks designed to provide a means to earn fees.",
-    contactEmail: "support@affimind.com"
+    siteName: "BlogFlow AI",
+    siteDescription: "A professional AI-first publishing platform optimized for high SEO rankings and generative engine citations.",
+    affiliateDisclosure: "BlogFlow AI participates in select affiliate programs. When you purchase software or services through our links, we may earn an affiliate commission at no extra cost to you.",
+    contactEmail: "editorial@blogflowai.com"
   });
 
   useEffect(() => {
-    // Listen for custom pushstate / back navigation trigger events
     const handleLocationChange = () => {
       setCurrentPath(window.location.pathname);
       window.scrollTo({ top: 0, behavior: "smooth" });
     };
 
     window.addEventListener("popstate", handleLocationChange);
+    window.addEventListener("pushstate-navigation", handleLocationChange);
     return () => {
       window.removeEventListener("popstate", handleLocationChange);
+      window.removeEventListener("pushstate-navigation", handleLocationChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  }, [darkMode]);
 
   useEffect(() => {
     async function fetchSettings() {
@@ -47,7 +62,7 @@ export default function App() {
           setSettings(data);
         }
       } catch (err) {
-        console.error("Failed to retrieve editorial settings parameters:", err);
+        console.error("Failed to retrieve site settings:", err);
       }
     }
     fetchSettings();
@@ -60,9 +75,6 @@ export default function App() {
     }
     if (currentPath === "/categories") {
       return <Categories />;
-    }
-    if (currentPath.startsWith("/product/")) {
-      return <ProductDetail />;
     }
     if (currentPath.startsWith("/article/")) {
       return <ArticleDetail />;
@@ -90,9 +102,13 @@ export default function App() {
     return <Home />;
   };
 
+  const toggleTheme = () => {
+    setDarkMode(!darkMode);
+  };
+
   return (
-    <div className="flex flex-col min-h-screen bg-slate-900 text-slate-100">
-      <Header currentPath={currentPath} />
+    <div className={`flex flex-col min-h-screen transition-colors duration-300 ${darkMode ? "bg-slate-950 text-slate-100" : "bg-slate-50 text-slate-900"}`}>
+      <Header currentPath={currentPath} darkMode={darkMode} toggleTheme={toggleTheme} settings={settings} />
       <main className="flex-grow">
         {renderActivePage()}
       </main>
