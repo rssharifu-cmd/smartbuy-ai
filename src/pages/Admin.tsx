@@ -53,6 +53,30 @@ export const Admin: React.FC = () => {
   const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
   const [changePasswordSuccess, setChangePasswordSuccess] = useState<string | null>(null);
 
+  // Password Recovery States
+  const [isRecovering, setIsRecovering] = useState(false);
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoveryError, setRecoveryError] = useState<string | null>(null);
+  const [recoverySuccess, setRecoverySuccess] = useState<string | null>(null);
+  const [fallbackResetLink, setFallbackResetLink] = useState<string | null>(null);
+  const [recoverySubmitting, setRecoverySubmitting] = useState(false);
+
+  // Hidden click counter for recovery entry point
+  const [clickCount, setClickCount] = useState(0);
+
+  // Reset Password States (Modal-based)
+  const [isResetModalOpen, setIsResetModalOpen] = useState(false);
+  const [resetToken, setResetToken] = useState("");
+  const [resetPassword, setResetPassword] = useState("");
+  const [confirmResetPassword, setConfirmResetPassword] = useState("");
+  const [resetError, setResetError] = useState<string | null>(null);
+  const [resetSuccess, setResetSuccess] = useState<string | null>(null);
+  const [resetSubmitting, setResetSubmitting] = useState(false);
+
+  // Token Verification Status
+  const [isValidatingToken, setIsValidatingToken] = useState(false);
+  const [tokenValidationError, setTokenValidationError] = useState<string | null>(null);
+
   // Core CMS state
   const [articles, setArticles] = useState<Article[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -153,6 +177,17 @@ export const Admin: React.FC = () => {
     const token = sessionStorage.getItem("admin_token");
     if (token) {
       setIsAuthenticated(true);
+    }
+
+    // Check for secure recovery/reset token in URL query parameter
+    const params = new URLSearchParams(window.location.search);
+    const rToken = params.get("reset_token");
+    if (rToken) {
+      setResetToken(rToken);
+      setIsResetModalOpen(true);
+      validateToken(rToken);
+      // Clean up URL without reload to protect reset token
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
@@ -266,9 +301,254 @@ export const Admin: React.FC = () => {
     }
   };
 
+  const validateToken = async (token: string) => {
+    setIsValidatingToken(true);
+    setTokenValidationError(null);
+    try {
+      const res = await fetch("/api/admin/verify-reset-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setTokenValidationError(data.error || "This recovery link is invalid or has expired.");
+      }
+    } catch {
+      setTokenValidationError("Failed to communicate with recovery server for verification.");
+    } finally {
+      setIsValidatingToken(false);
+    }
+  };
+
+  const handleLockClick = () => {
+    setClickCount(prev => {
+      const newCount = prev + 1;
+      if (newCount >= 5) {
+        setIsRecovering(true);
+        setLoginError(null);
+        setRecoveryEmail("");
+        setRecoveryError(null);
+        setRecoverySuccess(null);
+        setFallbackResetLink(null);
+        return 0;
+      }
+      return newCount;
+    });
+  };
+
+  const handleRecoverySubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRecoveryError(null);
+    setRecoverySuccess(null);
+    setFallbackResetLink(null);
+    setRecoverySubmitting(true);
+
+    try {
+      const res = await fetch("/api/admin/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: recoveryEmail.trim() })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setRecoverySuccess(data.sent 
+          ? "A secure reset link has been successfully dispatched to your email." 
+          : "Secure reset link successfully generated."
+        );
+        if (data.fallbackResetLink) {
+          setFallbackResetLink(data.fallbackResetLink);
+        }
+      } else {
+        setRecoveryError(data.error || "No administrative user matches this email address.");
+      }
+    } catch {
+      setRecoveryError("Failed to communicate with recovery server.");
+    } finally {
+      setRecoverySubmitting(false);
+    }
+  };
+
+  const handleResetSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setResetError(null);
+    setResetSuccess(null);
+
+    if (resetPassword !== confirmResetPassword) {
+      setResetError("New security keys do not match.");
+      return;
+    }
+
+    if (resetPassword.trim().length < 4) {
+      setResetError("New security key must be at least 4 characters.");
+      return;
+    }
+
+    setResetSubmitting(true);
+
+    try {
+      const res = await fetch("/api/admin/reset-password-with-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: resetToken,
+          newPassword: resetPassword.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setResetSuccess(data.message || "Security key successfully reset!");
+        setTimeout(() => {
+          setIsResetModalOpen(false);
+          setResetToken("");
+          setResetPassword("");
+          setConfirmResetPassword("");
+          setResetSuccess(null);
+        }, 2500);
+      } else {
+        setResetError(data.error || "Failed to reset security key.");
+      }
+    } catch {
+      setResetError("Failed to communicate with reset server.");
+    } finally {
+      setResetSubmitting(false);
+    }
+  };
+
   const handleLogout = () => {
     sessionStorage.removeItem("admin_token");
     setIsAuthenticated(false);
+  };
+
+  const renderResetModal = () => {
+    if (!isResetModalOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-sm z-[9999] flex items-center justify-center p-4" id="password-reset-modal">
+        <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+          
+          {/* Modal Header */}
+          <div className="relative p-6 border-b border-slate-800 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Key className="w-5 h-5 text-indigo-500" />
+              <span className="font-bold text-xs tracking-wider text-slate-300 uppercase">Reset Verification Gate</span>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => {
+                setIsResetModalOpen(false);
+                setResetToken("");
+                setResetPassword("");
+                setConfirmResetPassword("");
+                setResetError(null);
+                setResetSuccess(null);
+                setTokenValidationError(null);
+              }}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Modal Body */}
+          <div className="p-8 space-y-6">
+            {isValidatingToken ? (
+              <div className="py-8 flex flex-col items-center justify-center space-y-4 text-center">
+                <Loader2 className="w-10 h-10 text-indigo-500 animate-spin" />
+                <div className="space-y-1">
+                  <h3 className="font-bold text-white text-base">Verifying Security Token</h3>
+                  <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+                    Validating the recovery token against secure platform keys. Please wait...
+                  </p>
+                </div>
+              </div>
+            ) : tokenValidationError ? (
+              <div className="py-4 flex flex-col items-center text-center space-y-4">
+                <div className="bg-rose-500/10 p-3.5 rounded-full text-rose-500">
+                  <AlertCircle className="w-8 h-8" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="font-bold text-white text-base">Recovery Link Invalid</h3>
+                  <p className="text-xs text-rose-400/90 max-w-sm leading-relaxed px-2">
+                    {tokenValidationError}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsResetModalOpen(false);
+                    setTokenValidationError(null);
+                  }}
+                  className="mt-2 px-5 py-2.5 bg-slate-850 hover:bg-slate-800 text-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer border border-slate-800"
+                >
+                  Dismiss & Return
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="text-center">
+                  <div className="bg-indigo-600/15 p-3 rounded-full w-fit mx-auto text-indigo-400 mb-3">
+                    <Lock className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-lg font-bold text-white tracking-tight">Set New Security Key</h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                    Your token has been successfully verified. Please establish a new, strong administrative security key.
+                  </p>
+                </div>
+
+                <form onSubmit={handleResetSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">New Security Key</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Min 4 characters"
+                      value={resetPassword}
+                      onChange={(e) => setResetPassword(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-700 focus:outline-none transition-all"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Confirm New Security Key</label>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Confirm security key"
+                      value={confirmResetPassword}
+                      onChange={(e) => setConfirmResetPassword(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-700 focus:outline-none transition-all"
+                    />
+                  </div>
+
+                  {resetError && (
+                    <div className="bg-rose-950/40 border border-rose-900/50 p-3.5 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                      <span>{resetError}</span>
+                    </div>
+                  )}
+
+                  {resetSuccess && (
+                    <div className="bg-emerald-950/40 border border-emerald-900/50 p-3.5 rounded-xl text-xs text-emerald-400 font-medium flex items-center gap-2 animate-pulse">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                      <span>{resetSuccess}</span>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={resetSubmitting}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-indigo-600/10 cursor-pointer disabled:opacity-50 font-sans mt-2"
+                  >
+                    {resetSubmitting ? "Saving New Credentials..." : "Save New Security Key"}
+                  </button>
+                </form>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   };
 
   const showStatus = (type: "success" | "error", text: string) => {
@@ -874,13 +1154,104 @@ export const Admin: React.FC = () => {
 
   // Render Authorization Gate
   if (!isAuthenticated) {
+    if (isRecovering) {
+      return (
+        <div className="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center px-4 py-20 font-sans">
+          <div className="max-w-md w-full bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl space-y-6">
+            <div className="text-center">
+              <div className="bg-indigo-600 p-3 rounded-full w-fit mx-auto text-white shadow-lg shadow-indigo-600/20 mb-4">
+                <HelpCircle className="w-6 h-6 animate-pulse" />
+              </div>
+              <h1 className="text-2xl font-black text-white tracking-tight">Recover Security Key</h1>
+              <p className="text-xs text-slate-400 mt-1 leading-relaxed">
+                Provide your administrative contact email to initiate a secure recovery sequence.
+              </p>
+            </div>
+
+            <form onSubmit={handleRecoverySubmit} className="space-y-4">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2">Administrative Email</label>
+                <input
+                  type="email"
+                  required
+                  placeholder="editorial@blogflowai.com"
+                  value={recoveryEmail}
+                  onChange={(e) => setRecoveryEmail(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-indigo-500 rounded-xl px-4 py-3 text-sm text-slate-100 placeholder-slate-700 focus:outline-none transition-all"
+                />
+              </div>
+
+              {recoveryError && (
+                <div className="bg-rose-950/40 border border-rose-900/50 p-3.5 rounded-xl text-xs text-rose-400 font-medium flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-400 flex-shrink-0" />
+                  <span>{recoveryError}</span>
+                </div>
+              )}
+
+              {recoverySuccess && (
+                <div className="bg-emerald-950/40 border border-emerald-900/50 p-3.5 rounded-xl text-xs text-emerald-400 font-medium flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                  <span>{recoverySuccess}</span>
+                </div>
+              )}
+
+              {fallbackResetLink && (
+                <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl text-xs space-y-2 mt-2">
+                  <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Secure Fallback Link:</span>
+                  <p className="text-indigo-400 font-mono break-all leading-normal select-all select-none selection:bg-indigo-500 selection:text-white">{fallbackResetLink}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(fallbackResetLink);
+                      showStatus("success", "Link copied to clipboard!");
+                    }}
+                    className="text-[11px] text-indigo-400 hover:text-indigo-300 font-bold underline flex items-center gap-1 mt-1 cursor-pointer"
+                  >
+                    <Copy className="w-3 h-3" /> Copy Secure Link
+                  </button>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRecovering(false);
+                    setRecoveryError(null);
+                    setRecoverySuccess(null);
+                    setFallbackResetLink(null);
+                  }}
+                  className="flex-1 bg-slate-950 hover:bg-slate-850 text-slate-300 font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all border border-slate-800 cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={recoverySubmitting}
+                  className="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all shadow-md hover:shadow-indigo-600/10 cursor-pointer disabled:opacity-50"
+                >
+                  {recoverySubmitting ? "Sending..." : "Recover Key"}
+                </button>
+              </div>
+            </form>
+          </div>
+          {renderResetModal()}
+        </div>
+      );
+    }
+
     return (
       <div className="bg-slate-950 text-slate-100 min-h-screen flex items-center justify-center px-4 py-20 font-sans">
         <div className="max-w-md w-full bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl space-y-6">
           <div className="text-center">
-            <div className="bg-indigo-600 p-3 rounded-full w-fit mx-auto text-white shadow-lg shadow-indigo-600/20 mb-4 animate-bounce">
+            <button 
+              type="button"
+              onClick={handleLockClick}
+              className="bg-indigo-600 p-3 rounded-full w-fit mx-auto text-white shadow-lg shadow-indigo-600/20 mb-4 animate-bounce hover:scale-105 active:scale-95 transition-transform focus:outline-none cursor-pointer"
+              title="Verify Security Credentials"
+            >
               <Lock className="w-6 h-6" />
-            </div>
+            </button>
             <h1 className="text-2xl font-black text-white tracking-tight">Administrative CMS</h1>
             <p className="text-xs text-slate-400 mt-1 leading-relaxed">
               Verify security keys to review platform matrices, trigger deep topic research, publish expert analyses, or customize headers.
@@ -915,6 +1286,7 @@ export const Admin: React.FC = () => {
             </button>
           </form>
         </div>
+        {renderResetModal()}
       </div>
     );
   }
@@ -2317,6 +2689,7 @@ export const Admin: React.FC = () => {
         </div>
       )}
 
+      {renderResetModal()}
     </div>
   );
 };

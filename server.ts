@@ -9,6 +9,8 @@ import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
 import dotenv from "dotenv";
+import nodemailer from "nodemailer";
+import crypto from "crypto";
 
 dotenv.config();
 
@@ -220,6 +222,120 @@ app.post("/api/admin/change-password", (req, res) => {
     res.json({ success: true, message: "Administrative security key updated successfully!" });
   } else {
     res.status(401).json({ error: "Verification failed. The current security key is incorrect." });
+  }
+});
+
+// Admin Forgot Password (Password Recovery)
+app.post("/api/admin/forgot-password", async (req, res) => {
+  const { email } = req.body;
+  const contactEmail = db.settings.contactEmail || "editorial@blogflowai.com";
+  
+  if (!email || email.trim().toLowerCase() !== contactEmail.trim().toLowerCase()) {
+    return res.status(400).json({ error: "No matching administrative email found." });
+  }
+
+  // Generate randomized secure token
+  const token = crypto.randomBytes(32).toString("hex");
+  db.settings.recoveryToken = token;
+  db.settings.recoveryTokenExpiry = Date.now() + 3600000; // 1 hour
+  saveDatabase();
+
+  const host = req.get("host") || "localhost:3000";
+  const protocol = req.secure || req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  const resetLink = `${protocol}://${host}/admin?reset_token=${token}`;
+
+  const smtpHost = process.env.SMTP_HOST;
+  const smtpPort = parseInt(process.env.SMTP_PORT || "587");
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+
+  let sent = false;
+  let emailError = "";
+
+  if (smtpHost && smtpUser && smtpPass) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: smtpPort,
+        secure: smtpPort === 465,
+        auth: {
+          user: smtpUser,
+          pass: smtpPass
+        }
+      });
+      await transporter.sendMail({
+        from: `"BlogFlow AI" <${smtpUser}>`,
+        to: email,
+        subject: "Reset your Administrative Security Key - BlogFlow AI",
+        text: `Please use the following link to reset your administrative security key. This link is valid for 1 hour:\n\n${resetLink}\n\nIf you did not request this, please ignore this email.`,
+        html: `<div style="font-family: sans-serif; padding: 20px; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff; color: #1e293b;">
+          <h2 style="color: #4f46e5; margin-top: 0;">Reset Administrative Security Key</h2>
+          <p>Please click the button below to safely reset your administrative security key. This link is valid for 1 hour:</p>
+          <div style="margin: 24px 0;">
+            <a href="${resetLink}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">Reset Security Key</a>
+          </div>
+          <p style="color: #64748b; font-size: 12px;">Or copy and paste this URL into your browser:</p>
+          <p style="color: #64748b; font-size: 12px; word-break: break-all;">${resetLink}</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+          <p style="color: #94a3b8; font-size: 11px;">If you did not make this request, you can safely ignore this email.</p>
+        </div>`
+      });
+      sent = true;
+    } catch (err: any) {
+      console.error("Failed to send SMTP recovery email:", err);
+      emailError = err.message || String(err);
+    }
+  }
+
+  const smtpConfigured = !!(smtpHost && smtpUser && smtpPass);
+  res.json({
+    success: true,
+    sent,
+    smtpConfigured,
+    emailError: emailError || undefined,
+    fallbackResetLink: !smtpConfigured ? resetLink : undefined
+  });
+});
+
+// Admin Verify Reset Token
+app.post("/api/admin/verify-reset-token", (req, res) => {
+  const { token } = req.body;
+  if (!token) {
+    return res.status(400).json({ error: "Verification token is required." });
+  }
+
+  const savedToken = db.settings.recoveryToken;
+  const expiry = db.settings.recoveryTokenExpiry;
+
+  if (savedToken && savedToken === token && expiry && expiry > Date.now()) {
+    res.json({ success: true });
+  } else {
+    res.status(400).json({ error: "Invalid or expired recovery token." });
+  }
+});
+
+// Admin Reset Password with Token
+app.post("/api/admin/reset-password-with-token", (req, res) => {
+  const { token, newPassword } = req.body;
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: "Token and new password are required." });
+  }
+
+  const savedToken = db.settings.recoveryToken;
+  const expiry = db.settings.recoveryTokenExpiry;
+
+  if (savedToken && savedToken === token && expiry && expiry > Date.now()) {
+    if (newPassword.trim().length < 4) {
+      return res.status(400).json({ error: "New administrative security key must be at least 4 characters." });
+    }
+    db.settings.adminPassword = newPassword.trim();
+    // Clear token after successful reset
+    db.settings.recoveryToken = null;
+    db.settings.recoveryTokenExpiry = null;
+    saveDatabase();
+    res.json({ success: true, message: "Security key successfully reset! You can now log in." });
+  } else {
+    res.status(400).json({ error: "Failed to reset password. Token is invalid or has expired." });
   }
 });
 
